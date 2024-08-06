@@ -44,6 +44,16 @@ let clientSchema = new mongoose.Schema({
     trim: true,
     required: [true, "Required!"],
   },
+  email: {
+    type: String,
+    trim: true,
+    required: [true, "Email Required!"],
+  },
+  birthday: {
+    type: Date,
+    trim: true,
+    required: [true, "Required!"],
+  },
 });
 const CLIENT = mongoose.model("client", clientSchema);
 module.exports = CLIENT;

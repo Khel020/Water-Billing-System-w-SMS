@@ -11,12 +11,13 @@ exports.CreateClient = async (data) => {
     // Create a new client object
     let NewClient = new client({
       acc_num: data.acc_num,
-      accountName: data.fname + " " + data.lastname, // Concatenate first and last names
-      c_address: data.c_address,
-      contact: data.contact,
+      accountName: data.accountName,
       meter_num: data.meter_num,
+      contact: data.contact,
       status: data.status,
       client_type: data.client_type,
+      email: data.email,
+      birthday: data.birthday,
     });
 
     // Save the new client to the database
@@ -43,19 +44,45 @@ exports.GetAllClients = async (data) => {
       return { error: "There is an error" };
     });
 };
-exports.UpdateClientByID = async (data) => {
-  const clientsID = data.id;
-  const updates = data.updates;
+exports.UpdateClientByAccNum = async (data) => {
+  const clientID = data._id;
+  const updates = {
+    acc_num: data.acc_num,
+    accountName: data.accountName,
+    meter_num: data.meter_num,
+    contact: data.contact,
+    status: data.status,
+    client_type: data.client_type,
+    email: data.email,
+    birthday: data.birthday,
+  };
+  try {
+    // Ensure that the `updates` object contains valid fields and values
+    if (
+      !updates ||
+      typeof updates !== "object" ||
+      Object.keys(updates).length === 0
+    ) {
+      throw new Error("Invalid updates object");
+    }
+    // Use findByIdAndUpdate with { new: true } to return the updated document
+    const updatedClient = await client.findByIdAndUpdate(clientID, updates, {
+      new: true,
+    });
 
-  const updatedClient = await client.findByIdAndUpdate(clientsID, updates);
+    if (!updatedClient) {
+      return { message: "Client not found" };
+    }
 
-  if (!updatedClient) {
-    return { message: "Client not found" };
+    console.log(updatedClient);
+    return updatedClient;
+  } catch (error) {
+    console.error("Error updating client:", error);
+    return { message: "Error updating client", error: error.message };
   }
-  return updatedClient;
 };
 exports.DeleteClientByID = async (data) => {};
-
+//TODO: Checking account first and if valid or existing acc then you can now register
 exports.CheckAccount = async (data) => {
   const { accountName, acc_num } = data;
 
@@ -66,5 +93,17 @@ exports.CheckAccount = async (data) => {
   } catch (err) {
     console.error(err);
     throw new Error("Server error");
+  }
+};
+// FIXME: FIND CLIENT BY ID
+const getClientById = async (req, res) => {
+  try {
+    const hasClientID = await client.findById(req.params.id);
+    if (!hasClientID) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    res.json(hasClientID);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };

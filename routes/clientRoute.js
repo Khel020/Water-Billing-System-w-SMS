@@ -25,7 +25,7 @@ route.post("/newclient", (req, res) => {
 route.put("/editClient", (req, res) => {
   console.log("Updating Client");
   console.log(req.body);
-  controller.UpdateClientByID(req.body).then((result) => {
+  controller.UpdateClientByAccNum(req.body).then((result) => {
     res.send(result);
   });
 });
@@ -40,4 +40,15 @@ route.delete("/deleteClient", (req, res) => {
     .catch((err) => {
       console.log(err);
     });
+});
+route.get("/:id", async (req, res) => {
+  try {
+    const client = await controller.findById(req.params.acc_num);
+    if (!client) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    res.json(client);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
