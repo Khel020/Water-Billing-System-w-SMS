@@ -1,24 +1,22 @@
-const exp = require("express");
-const route = exp.Router();
-const controller = require("../controllers/Login");
+const express = require("express");
+const route = express.Router();
+const controller = require("../controllers/newLogin");
+
+route.post("/newLogin", (req, res) => {
+  const { acc_name, password } = req.body; // Use acc_name instead of username
+
+  if (typeof acc_name !== "string" || typeof password !== "string") {
+    return res.status(400).json({ message: "Invalid input types" });
+  }
+  console.log(req.body);
+  controller
+    .login(req.body)
+    .then((result) => {
+      res.json(result); // Ensure result is sent as JSON
+    })
+    .catch((error) => {
+      res.status(500).json({ message: "Server error", error });
+    });
+});
 
 module.exports = route;
-
-route.post("/", (req, res) => {
-  console.log(req.body);
-
-  let acc_name = req.body.acc_name;
-  let password = req.body.password;
-  let usertype = req.body.usertype;
-  let returnbody = {};
-
-  if (acc_name && password) {
-    controller.login(acc_name, password, usertype, returnbody).then((ok) => {
-      if (!ok.error) {
-        res.send(returnbody);
-      } else {
-        res.status(400).json({ error: ok.error });
-      }
-    });
-  }
-});

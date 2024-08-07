@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-let adminSchema = new mongoose.Schema({
+let staffSchema = new mongoose.Schema({
   username: {
     type: String,
     trim: true,
@@ -61,11 +61,6 @@ let adminSchema = new mongoose.Schema({
       trim: true,
     },
   },
-  usertype: {
-    type: String,
-    required: true,
-    default: "admin",
-  },
 });
-const ADMIN = mongoose.model("admin", adminSchema);
+const STAFF = mongoose.model("staffs", staffSchema);
 module.exports = ADMIN;

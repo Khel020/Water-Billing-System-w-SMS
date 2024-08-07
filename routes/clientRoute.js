@@ -30,10 +30,10 @@ route.put("/editClient", (req, res) => {
   });
 });
 route.delete("/deleteClient", (req, res) => {
-  console.log("Updating Client");
+  console.log("Archiving..");
   console.log(req.body);
   controller
-    .UpdateClientByID(req.body)
+    .ArchiveClient(req.body)
     .then((result) => {
       res.send(result);
     })

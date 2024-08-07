@@ -54,6 +54,9 @@ let clientSchema = new mongoose.Schema({
     trim: true,
     required: [true, "Required!"],
   },
+  isArchive: {
+    type: Boolean,
+  },
 });
 const CLIENT = mongoose.model("client", clientSchema);
 module.exports = CLIENT;

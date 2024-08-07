@@ -5,7 +5,7 @@ const env = require("dotenv").config();
 const route = exp.Router();
 const bcrypt = require("bcrypt");
 const pnv = process.env;
-
+//TODO: Creating Client/ Add Client
 exports.CreateClient = async (data) => {
   try {
     // Create a new client object
@@ -31,7 +31,7 @@ exports.CreateClient = async (data) => {
     return { error: "Failed to create client" };
   }
 };
-
+//TODO: Get all the client
 exports.GetAllClients = async (data) => {
   return await client
     .find({})
@@ -44,6 +44,7 @@ exports.GetAllClients = async (data) => {
       return { error: "There is an error" };
     });
 };
+//TODO: Update Using Acc Num
 exports.UpdateClientByAccNum = async (data) => {
   const clientID = data._id;
   const updates = {
@@ -81,7 +82,7 @@ exports.UpdateClientByAccNum = async (data) => {
     return { message: "Error updating client", error: error.message };
   }
 };
-exports.DeleteClientByID = async (data) => {};
+exports.ArchiveClient = async (data) => {};
 //TODO: Checking account first and if valid or existing acc then you can now register
 exports.CheckAccount = async (data) => {
   const { accountName, acc_num } = data;

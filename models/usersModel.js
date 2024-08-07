@@ -3,7 +3,6 @@ const mongoose = require("mongoose");
 let userSchema = new mongoose.Schema({
   acc_name: {
     type: String,
-    trim: true,
     required: [true, "Account Name Required!"],
     unique: [true, "Account Name Already Taken!"],
   },
@@ -11,7 +10,6 @@ let userSchema = new mongoose.Schema({
     type: String,
     trim: true,
     required: [true, "Required!"],
-    minLength: [8, "Password should be at least 8-12 characters long"],
   },
   contact: {
     type: Number,
@@ -41,6 +39,12 @@ let userSchema = new mongoose.Schema({
     unique: [true, "Email Already Taken!"],
     sparse: true,
   },
+  usertype: {
+    type: String,
+    required: true,
+    default: "users",
+  },
 });
+
 const USERS = mongoose.model("users", userSchema);
 module.exports = USERS;

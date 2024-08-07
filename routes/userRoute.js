@@ -38,7 +38,6 @@ route.delete("/deleteUser", (req, res) => {
       console.log(err);
     });
 });
-
 route.post("/checkAccount", async (req, res) => {
   console.log("Checking Account");
   console.log(req.body);
