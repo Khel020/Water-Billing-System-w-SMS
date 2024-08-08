@@ -12,7 +12,7 @@ const pnv = process.env;
 const http = require("http"); // for http server
 const { Server } = require("socket.io"); //
 app.use(crs()); //
-app.use(exp.json()); //
+app.use(exp.json()); // middleware
 app.use("/admin", admin);
 app.use("/client", CLIENT);
 app.use("/user", USERS);

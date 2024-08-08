@@ -97,14 +97,14 @@ exports.CheckAccount = async (data) => {
   }
 };
 // FIXME: FIND CLIENT BY ID
-const getClientById = async (req, res) => {
-  try {
-    const hasClientID = await client.findById(req.params.id);
-    if (!hasClientID) {
-      return res.status(404).json({ message: "Client not found" });
-    }
-    res.json(hasClientID);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+// exports.getClientById = async (data) => {
+//   try {
+//     const hasClientID = await client.findById(req.params.id);
+//     if (!hasClientID) {
+//       return res.status(404).json({ message: "Client not found" });
+//     }
+//     res.json(hasClientID);
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };

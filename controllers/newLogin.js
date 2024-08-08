@@ -23,10 +23,14 @@ module.exports.login = (data) => {
           console.log(usertype);
           if (usertype === "users") {
             returnbody.token = makeToken({
+              user_id: result._id,
               acc_num: result.acc_num,
               accountName: result.acc_name,
               isUser: result.usertype,
             });
+            returnbody.expTKN = new Date(
+              new Date().getTime() + 23 * 60 * 60 * 1000
+            );
             returnbody.accountName = result.acc_name;
             returnbody.type = usertype;
             return returnbody; // Return the response object

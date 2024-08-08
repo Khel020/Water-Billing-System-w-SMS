@@ -11,24 +11,54 @@ let passHash = (password) => {
 };
 
 exports.CreateUser = async (data) => {
-  let NewUser = new user();
-  NewUser.acc_name = data.acc_name;
-  NewUser.password = passHash(data.password);
-  NewUser.contact = data.contact;
-  NewUser.acc_num = data.acc_num;
-  NewUser.meter_num = data.meter_num;
-  NewUser.birthday = data.birthday;
-  NewUser.email = data.email;
+  const account = await user.findOne({
+    $or: [
+      { acc_name: data.acc_name },
+      { acc_num: data.acc_num },
+      { meter_num: data.meter_num },
+      { email: data.email },
+    ],
+  });
+  if (account) {
+    let errorMessage = "Account Already Exists: ";
+    if (account.acc_name === data.acc_name) {
+      errorMessage += "Account Name already taken. ";
+      console.log(errorMessage);
+    }
+    if (account.acc_num === data.acc_num) {
+      errorMessage += "Account Number already taken. ";
+      console.log(errorMessage);
+    }
+    if (account.meter_num === data.meter_num) {
+      errorMessage += "Meter Number already taken. ";
+      console.log(errorMessage);
+    }
+    if (account.email === data.email) {
+      errorMessage += "Email already taken.";
+      console.log(errorMessage);
+    }
+    return { message: errorMessage.trim() };
+  } else {
+    let NewUser = new user();
+    NewUser.acc_name = data.acc_name;
+    NewUser.password = passHash(data.password);
+    NewUser.contact = data.contact;
+    NewUser.acc_num = data.acc_num;
+    NewUser.meter_num = data.meter_num;
+    NewUser.birthday = data.birthday;
+    NewUser.email = data.email;
 
-  return NewUser.save()
-    .then((result) => {
-      if (result) {
-        return { message: "Account Successfully Created" };
-      }
-    })
-    .catch((err) => {
-      return console.log(err);
-    });
+    return NewUser.save()
+      .then((result) => {
+        if (result) {
+          return { message: "Account Successfully Created" };
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+        return { message: "An error occurred while creating the account." };
+      });
+  }
 };
 exports.GetAllUsers = async (data) => {
   return await user
