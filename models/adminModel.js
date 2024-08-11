@@ -13,11 +13,6 @@ let adminSchema = new mongoose.Schema({
     required: [true, "Required!"],
     minLength: [8, "Password should be at least 8-12 characters long"],
   },
-  usertype: {
-    type: String,
-    trim: true,
-    required: [true, "Required!"],
-  },
   contact: {
     type: Number,
     trim: true,
@@ -41,13 +36,6 @@ let adminSchema = new mongoose.Schema({
     sparse: true,
   },
   address: {
-    house_num: {
-      type: Number,
-    },
-    purok: {
-      type: String,
-      trim: true,
-    },
     brgy: {
       type: String,
       trim: true,

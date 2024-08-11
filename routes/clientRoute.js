@@ -1,13 +1,10 @@
 const exp = require("express");
 const route = exp.Router();
 const controller = require("../controllers/clientController.js");
+const authMiddleware = require("../controllers/newLogin");
 
 module.exports = route;
 
-//Get = For get
-//Post= Add New Data
-//Put = Update/Edit
-//Delete = Delete
 route.get("/clients", (req, res) => {
   console.log("Loading Clients");
   console.log(req.body);

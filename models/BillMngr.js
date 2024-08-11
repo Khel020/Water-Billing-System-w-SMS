@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-let staffSchema = new mongoose.Schema({
+let billmngrSchema = new mongoose.Schema({
   username: {
     type: String,
     trim: true,
@@ -12,11 +12,6 @@ let staffSchema = new mongoose.Schema({
     trim: true,
     required: [true, "Required!"],
     minLength: [8, "Password should be at least 8-12 characters long"],
-  },
-  usertype: {
-    type: String,
-    trim: true,
-    required: [true, "Required!"],
   },
   contact: {
     type: Number,
@@ -61,6 +56,11 @@ let staffSchema = new mongoose.Schema({
       trim: true,
     },
   },
+  usertype: {
+    type: String,
+    required: true,
+    default: "billmngr",
+  },
 });
-const STAFF = mongoose.model("staffs", staffSchema);
-module.exports = ADMIN;
+const BILLMNGR = mongoose.model("billmanagers", billmngrSchema);
+module.exports = BILLMNGR;

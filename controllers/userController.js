@@ -20,24 +20,21 @@ exports.CreateUser = async (data) => {
     ],
   });
   if (account) {
-    let errorMessage = "Account Already Exists: ";
+    const errors = {};
     if (account.acc_name === data.acc_name) {
-      errorMessage += "Account Name already taken. ";
-      console.log(errorMessage);
+      errors.acc_name = "Account Name is already taken.";
     }
     if (account.acc_num === data.acc_num) {
-      errorMessage += "Account Number already taken. ";
-      console.log(errorMessage);
+      errors.acc_num = "Account Number is already taken.";
     }
     if (account.meter_num === data.meter_num) {
-      errorMessage += "Meter Number already taken. ";
-      console.log(errorMessage);
+      errors.meter_num = "Meter Number is already taken.";
     }
     if (account.email === data.email) {
-      errorMessage += "Email already taken.";
-      console.log(errorMessage);
+      errors.email = "Email is already taken.";
     }
-    return { message: errorMessage.trim() };
+
+    return { success: false, errors };
   } else {
     let NewUser = new user();
     NewUser.acc_name = data.acc_name;
