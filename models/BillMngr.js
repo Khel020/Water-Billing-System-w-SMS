@@ -36,13 +36,6 @@ let billmngrSchema = new mongoose.Schema({
     sparse: true,
   },
   address: {
-    house_num: {
-      type: Number,
-    },
-    purok: {
-      type: String,
-      trim: true,
-    },
     brgy: {
       type: String,
       trim: true,

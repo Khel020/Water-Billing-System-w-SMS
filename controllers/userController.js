@@ -11,52 +11,58 @@ let passHash = (password) => {
 };
 
 exports.CreateUser = async (data) => {
-  const account = await user.findOne({
-    $or: [
-      { acc_name: data.acc_name },
-      { acc_num: data.acc_num },
-      { meter_num: data.meter_num },
-      { email: data.email },
-    ],
-  });
-  if (account) {
-    const errors = {};
-    if (account.acc_name === data.acc_name) {
-      errors.acc_name = "Account Name is already taken.";
-    }
-    if (account.acc_num === data.acc_num) {
-      errors.acc_num = "Account Number is already taken.";
-    }
-    if (account.meter_num === data.meter_num) {
-      errors.meter_num = "Meter Number is already taken.";
-    }
-    if (account.email === data.email) {
-      errors.email = "Email is already taken.";
+  try {
+    const account = await user.findOne({
+      $or: [
+        { acc_name: data.acc_name },
+        { acc_num: data.acc_num },
+        { meter_num: data.meter_num },
+        { email: data.email },
+      ],
+    });
+    console.log("Account found: ", account);
+    console.log("Data received: ", data);
+    if (account) {
+      const errors = {};
+      if (account.acc_name === data.acc_name) {
+        errors.acc_name = "Account Name is already taken.";
+      }
+      if (account.acc_num === data.acc_num) {
+        errors.acc_num = "Account Number is already taken.";
+      }
+      if (String(account.meter_num) === data.meter_num) {
+        errors.meter_num = "Meter Number is already taken.";
+      }
+      if (account.email === data.email) {
+        errors.email = "Email is already taken.";
+      }
+      console.log({ errors });
+      return { success: false, errors };
     }
 
-    return { success: false, errors };
-  } else {
-    let NewUser = new user();
-    NewUser.acc_name = data.acc_name;
-    NewUser.password = passHash(data.password);
-    NewUser.contact = data.contact;
-    NewUser.acc_num = data.acc_num;
-    NewUser.meter_num = data.meter_num;
-    NewUser.birthday = data.birthday;
-    NewUser.email = data.email;
+    const NewUser = new user({
+      acc_name: data.acc_name,
+      password: passHash(data.password),
+      contact: data.contact,
+      acc_num: data.acc_num,
+      meter_num: data.meter_num,
+      birthday: data.birthday,
+      email: data.email,
+    });
 
-    return NewUser.save()
-      .then((result) => {
-        if (result) {
-          return { message: "Account Successfully Created" };
-        }
-      })
-      .catch((err) => {
-        console.log(err);
-        return { message: "An error occurred while creating the account." };
-      });
+    const result = await NewUser.save();
+    if (result) {
+      return { success: true };
+    }
+  } catch (err) {
+    console.error(err);
+    return {
+      success: false,
+      message: "An error occurred while creating the account.",
+    };
   }
 };
+
 exports.GetAllUsers = async (data) => {
   return await user
     .find({})
