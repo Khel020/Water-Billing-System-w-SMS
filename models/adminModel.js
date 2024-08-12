@@ -54,6 +54,10 @@ let adminSchema = new mongoose.Schema({
     required: true,
     default: "admin",
   },
+  isAdmin: {
+    type: Boolean,
+    default: true,
+  },
 });
 const ADMIN = mongoose.model("admin", adminSchema);
 module.exports = ADMIN;

@@ -14,7 +14,7 @@ exports.CreateUser = async (data) => {
   try {
     const account = await user.findOne({
       $or: [
-        { acc_name: data.acc_name },
+        { username: data.username },
         { acc_num: data.acc_num },
         { meter_num: data.meter_num },
         { email: data.email },
@@ -24,7 +24,7 @@ exports.CreateUser = async (data) => {
     console.log("Data received: ", data);
     if (account) {
       const errors = {};
-      if (account.acc_name === data.acc_name) {
+      if (account.username === data.username) {
         errors.acc_name = "Account Name is already taken.";
       }
       if (account.acc_num === data.acc_num) {
@@ -41,7 +41,7 @@ exports.CreateUser = async (data) => {
     }
 
     const NewUser = new user({
-      acc_name: data.acc_name,
+      username: data.username,
       password: passHash(data.password),
       contact: data.contact,
       acc_num: data.acc_num,
@@ -53,6 +53,8 @@ exports.CreateUser = async (data) => {
     const result = await NewUser.save();
     if (result) {
       return { success: true };
+    } else {
+      return { message: "No result" };
     }
   } catch (err) {
     console.error(err);

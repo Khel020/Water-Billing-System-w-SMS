@@ -4,6 +4,7 @@ const env = require("dotenv").config(); // for secret variables
 const crs = require("cors"); // sino lang ang pwede mag access sang server
 const admin = require("./routes/adminRoute.js");
 const CLIENT = require("./routes/clientRoute.js");
+const BILLER = require("./routes/billerRoutes.js");
 const USERS = require("./routes/userRoute.js");
 const LOGIN = require("./routes/Login.js");
 const app = exp(); // mismong server
@@ -15,6 +16,7 @@ app.use(crs()); //
 app.use(exp.json()); // middleware
 
 app.use("/admin", admin);
+app.use("/biller", BILLER);
 app.use("/client", CLIENT);
 app.use("/user", USERS);
 app.use("/login", LOGIN);

@@ -54,6 +54,10 @@ let billmngrSchema = new mongoose.Schema({
     required: true,
     default: "billmngr",
   },
+  isBiller: {
+    type: Boolean,
+    default: true,
+  },
 });
 const BILLMNGR = mongoose.model("billmanagers", billmngrSchema);
 module.exports = BILLMNGR;

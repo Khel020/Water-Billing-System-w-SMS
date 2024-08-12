@@ -1,5 +1,5 @@
 const admin = require("../models/adminModel");
-const user = require("../models/usersModel");
+const client = require("../models/usersModel");
 const billmngr = require("../models/BillMngr");
 const exp = require("express");
 const mng = require("mongoose");
@@ -12,90 +12,92 @@ const pnv = process.env;
 let makeToken = (data) => {
   return jwt.sign(data, pnv.TOKEN_SECRET, { expiresIn: "24h" });
 };
-module.exports.isAdmin = (req, res, next) => {
-  if (!module.exports.tokenCheck(req, res)) {
-    return false;
-  }
-  if (req.user.type === "admin") {
-    next();
-  } else {
-    return false;
-  }
-};
-module.exports.isUser = (req, res, next) => {
-  if (!module.exports.tokenCheck(req, res)) {
-    return false;
-  }
-  if (req.user.type === "user") {
-    next();
-  } else {
-    false;
-  }
-};
-module.exports.IsBiller = (req, res, next) => {
-  if (!module.exports.tokenCheck(req, res)) {
-    return false;
-  }
-  if (req.user.type === "biller") {
-    next();
-  } else {
-    false;
-  }
-};
-module.exports.tokenCheck = (req, res, next) => {
-  if (req.headers.authorization === undefined) {
-    res.json({ error: "Invalid Credentials" });
-    return false;
-  }
-  const authHeader = req.headers.authorization;
-  const token = authHeader.split(" ");
-  //Check if Autorization type is Bearer
-  if (token[0] != "Bearer") {
-    res.json({ error: "Invalid Credentials" });
-    return false;
-  }
-  try {
-    const decodedToken = jwt.verify(token[1], pnv.TOKEN_SECRET);
-    req.user = decodedToken;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: "Invalid Token" });
-  }
-};
-// authorizeRoles.js
-module.exports.authorizeRoles = (...roles) => {
-  return (req, res, next) => {
-    if (!roles.includes(req.user.usertype)) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-    next();
-  };
-};
-
+// // authorizeRoles.js
+// module.exports.authorizeRoles = (...roles) => {
+//   return (req, res, next) => {
+//     if (!roles.includes(req.user.usertype)) {
+//       return res.status(403).json({ error: "Forbidden" });
+//     }
+//     next();
+//   };
+// };
 //TODO: CLIENT LOGIN TOKEN
-module.exports.login = (data) => {
-  return user.findOne({ acc_name: data.acc_name }).then((result) => {
-    if (result) {
-      console.log(result);
-      return BCRYPT.compare(data.password, result.password).then((valid) => {
+module.exports.login = async (req, res) => {
+  try {
+    console.log("TEMPORARY LOGIN", req.username, req.password);
+    let username = req.username;
+    let password = req.password;
+    console.log("TESTING ", username, password);
+
+    let user;
+    let t;
+
+    user = await billmngr.findOne({ username });
+    if (user) {
+      t = user.usertype;
+    }
+    if (!user) {
+      user = await admin.findOne({ username });
+      if (user) {
+        t = user.usertype;
+      }
+    }
+    if (!user) {
+      user = await client.findOne({ username });
+      if (user) {
+        t = user.usertype;
+      }
+    }
+    if (!user) {
+      return res
+        .status(401)
+        .json({ message: "Invalid account name or password" });
+    }
+    if (user) {
+      return BCRYPT.compare(password, user.password).then((valid) => {
         if (valid) {
-          const usertype = result.usertype; // Access usertype from result
-          const returnbody = {}; // Define returnbody
-          console.log(usertype);
-          if (usertype === "users") {
+          console.log("YOUR TYPE IS", t);
+          const returnbody = {};
+          //TODO: TOKEN FOR BILLER ADMIN
+          if (t === "users") {
             returnbody.token = makeToken({
-              user_id: result._id,
-              acc_num: result.acc_num,
-              accountName: result.acc_name,
-              isUser: result.usertype,
+              user_id: user._id,
+              acc_num: user.acc_num,
+              accountName: user.username,
+              isUser: user.usertype,
             });
             returnbody.expTKN = new Date(
               new Date().getTime() + 23 * 60 * 60 * 1000
             );
-            returnbody.name = result.acc_name;
-            returnbody.acc_num = result.acc_num;
-            returnbody.type = usertype;
+            returnbody.name = user.username;
+            returnbody.type = t;
             return returnbody; // Return the response object
+          }
+          //TODO: TOKEN FOR BILLER MANAGER
+          else if (t === "billmngr") {
+            returnbody.token = makeToken({
+              user_id: user._id,
+              accountName: user.fname + " " + user.lastname,
+              isBiller: user.isBiller,
+            });
+            returnbody.expTKN = new Date(
+              new Date().getTime() + 23 * 60 * 60 * 1000
+            );
+            returnbody.type = t;
+            return returnbody;
+          }
+          //TODO: TOKEN FOR ADMIN
+          else if (t === "admin") {
+            returnbody.token = makeToken({
+              user_id: user._id,
+              accountName: user.fname + "" + user.lastname,
+              isAdmin: user.isAdmin,
+            });
+            returnbody.type = t;
+            returnbody.expTKN = new Date(
+              new Date().getTime() + 23 * 60 * 60 * 1000
+            );
+            return returnbody;
           } else {
             return { err: "Invalid User" };
           }
@@ -103,67 +105,9 @@ module.exports.login = (data) => {
           return { err: "Invalid Password" };
         }
       });
-    } else {
-      return { err: "User not found" }; // Handle case where user is not found
     }
-  });
-};
-
-module.exports.adminLogin = (username, password) => {
-  return admin.findOne({ username: username }).then((result) => {
-    if (result) {
-      return BCRYPT.compare(password, result.password).then((valid) => {
-        if (valid) {
-          const usertype = result.usertype;
-          const returnbody = {};
-          console.log(usertype);
-          if (usertype === "admin") {
-            returnbody.token = makeToken({
-              Name: result.fname + " " + result.lastname,
-              isAdmin: result.usertype,
-            });
-            returnbody.name = result.fname + " " + result.lastname;
-            returnbody.type = result.usertype;
-            return returnbody;
-          } else {
-            return { err: "Invalid User Type" };
-          }
-        } else {
-          return { err: "Invalid Password" };
-        }
-      });
-    } else {
-      return { err: "User not found" };
-    }
-  });
-};
-
-// BILLING MANAGER LOGIN TOKEN
-module.exports.billMngrLogin = (username, password) => {
-  return billmngr.findOne({ username: username }).then((result) => {
-    if (result) {
-      return BCRYPT.compare(password, result.password).then((valid) => {
-        if (valid) {
-          const usertype = result.usertype;
-          const returnbody = {};
-          console.log(usertype);
-          if (usertype === "billmngr") {
-            returnbody.token = makeToken({
-              Name: result.fname + " " + result.lastname,
-              isAdmin: result.usertype,
-            });
-            returnbody.name = result.fname + " " + result.lastname;
-            returnbody.type = result.usertype;
-            return returnbody;
-          } else {
-            return { err: "Invalid User Type" };
-          }
-        } else {
-          return { err: "Invalid Password" };
-        }
-      });
-    } else {
-      return { err: "User not found" };
-    }
-  });
+  } catch (error) {
+    console.error("Login Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
