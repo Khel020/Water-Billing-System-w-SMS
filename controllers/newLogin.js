@@ -7,6 +7,7 @@ const jwt = require("jsonwebtoken");
 const env = require("dotenv").config();
 const route = exp.Router();
 const BCRYPT = require("bcrypt");
+const { IsBiller } = require("../middleware/Auth");
 const pnv = process.env;
 
 let makeToken = (data) => {
@@ -64,6 +65,7 @@ module.exports.login = async (req, res) => {
               user_id: user._id,
               acc_num: user.acc_num,
               accountName: user.username,
+              type: t,
               isUser: user.usertype,
             });
             returnbody.expTKN = new Date(
@@ -78,7 +80,8 @@ module.exports.login = async (req, res) => {
             returnbody.token = makeToken({
               user_id: user._id,
               accountName: user.fname + " " + user.lastname,
-              isBiller: user.isBiller,
+              type: t,
+              IsBiller: user.isBiller,
             });
             returnbody.expTKN = new Date(
               new Date().getTime() + 23 * 60 * 60 * 1000
@@ -91,6 +94,7 @@ module.exports.login = async (req, res) => {
             returnbody.token = makeToken({
               user_id: user._id,
               accountName: user.fname + "" + user.lastname,
+              type: t,
               isAdmin: user.isAdmin,
             });
             returnbody.type = t;

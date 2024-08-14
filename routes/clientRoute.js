@@ -1,13 +1,12 @@
 const exp = require("express");
 const route = exp.Router();
 const controller = require("../controllers/clientController.js");
-const authMiddleware = require("../controllers/newLogin");
+const auth = require("../middleware/Auth.js");
 
 module.exports = route;
 
-route.get("/clients", (req, res) => {
+route.get("/clients", auth.BillerOnly, (req, res) => {
   console.log("Loading Clients");
-  console.log(req.body);
   controller.GetAllClients(req.body).then((result) => {
     res.send(result);
   });

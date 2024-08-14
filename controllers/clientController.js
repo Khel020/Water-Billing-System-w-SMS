@@ -33,7 +33,7 @@ exports.CreateClient = async (data) => {
   }
 };
 //TODO: Get all the client
-exports.GetAllClients = async (data) => {
+exports.GetAllClients = async () => {
   return await client
     .find({})
     .then((result) => {

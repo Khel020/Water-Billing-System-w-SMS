@@ -21,6 +21,7 @@ app.use("/client", CLIENT);
 app.use("/user", USERS);
 app.use("/login", LOGIN);
 
+// app.get("/auth", ProtectedRoutes);
 mng.connect(pnv.DB_CONNECTION_STRING);
 
 const server = http.createServer(app);
