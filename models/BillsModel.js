@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
+const AutoIncrement = require("mongoose-sequence")(mongoose);
 
 let billSchema = new mongoose.Schema({
+  acc_num: {
+    type: String,
+    required: [true, "Required!"],
+  },
   reading_date: {
     type: Date,
     required: [true, "Required!"],
@@ -9,7 +14,7 @@ let billSchema = new mongoose.Schema({
     type: Date,
     required: [true, "Required!"],
   },
-  fullname: {
+  accountName: {
     type: String,
     required: [true, "Required!"],
   },
@@ -18,14 +23,17 @@ let billSchema = new mongoose.Schema({
     required: [true, "Required!"],
   },
   dc_date: {
-    // Disconnection date
     type: Date,
     required: [true, "Required!"],
   },
   p_charge: {
-    //penalty charge
     type: Number,
     required: [true, "Required!"],
+  },
+  payment_status: {
+    type: String,
+    required: [true, "Required!"],
+    default: "Unpaid",
   },
   others: {
     type: String,
@@ -36,5 +44,8 @@ let billSchema = new mongoose.Schema({
     required: [true, "Required!"],
   },
 });
+
+billSchema.plugin(AutoIncrement, { inc_field: "billNumber" });
+
 const BILL = mongoose.model("bills", billSchema);
 module.exports = BILL;

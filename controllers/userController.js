@@ -25,7 +25,7 @@ exports.CreateUser = async (data) => {
     if (account) {
       const errors = {};
       if (account.username === data.username) {
-        errors.acc_name = "Account Name is already taken.";
+        errors.username = "Account Name is already taken.";
       }
       if (account.acc_num === data.acc_num) {
         errors.acc_num = "Account Number is already taken.";
