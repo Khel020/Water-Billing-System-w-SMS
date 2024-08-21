@@ -33,3 +33,10 @@ route.get("/getBillbyAccNum/:acc_number", (req, res) => {
     res.send(result);
   });
 });
+route.get("/getBillbyBillNum/:billNumber", (req, res) => {
+  console.log("Your Request Body:", req.params);
+  biller.GetBillsByBillNum(req.params).then((result) => {
+    console.log(result);
+    res.send(result);
+  });
+});

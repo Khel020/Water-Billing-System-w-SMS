@@ -1,5 +1,6 @@
 const biller = require("../models/BillMngr");
 const bills = require("../models/BillsModel");
+const Rate = require("../models/ratesModel");
 const exp = require("express");
 const mng = require("mongoose");
 const env = require("dotenv").config();
@@ -56,6 +57,21 @@ exports.CreateBillingMngr = async (data) => {
 };
 
 module.exports.AddBill = async (data) => {
+  const rate = await Rate.findOne({
+    category: data.category,
+    minConsumption: { $lte: data.consumption },
+    maxConsumption: { $gte: data.consumption },
+  });
+  const dueDate = calculateDueDate(data.reading_date);
+  let totalAmount = data.consumption * rate.rate;
+  let penalty = 0;
+
+  const currentDate = new Date();
+  if (currentDate > dueDate) {
+    penalty = calculatePenalty(totalAmount); // Calculate penalty
+    totalAmount += penalty;
+  }
+
   const billdata = new bills();
   billdata.acc_num = data.acc_num;
   billdata.reading_date = data.reading_date;
@@ -63,7 +79,10 @@ module.exports.AddBill = async (data) => {
   billdata.accountName = data.accountName;
   billdata.consumption = data.consumption;
   billdata.dc_date = data.dc_date;
-  billdata.p_charge = data.p_charge;
+  billdata.category = data.category;
+  billdata.totalAmount = totalAmount;
+  billdata.rate = rate.rate;
+  billdata.p_charge = penalty;
   billdata.others = data.others;
   billdata.remarks = data.remarks;
 
@@ -78,6 +97,18 @@ module.exports.AddBill = async (data) => {
       return { error: "There is an error" + err };
     });
 };
+
+function calculateDueDate(readingDate) {
+  const dueDate = new Date(readingDate);
+  dueDate.setDate(dueDate.getDate() + 30);
+  return dueDate;
+}
+
+function calculatePenalty(totalAmount) {
+  const penaltyRate = 0.1; //Edit if iba ang ratings for penalty
+  return totalAmount * penaltyRate;
+}
+
 module.exports.GetAllBills = async (data) => {
   return await bills
     .find({})
@@ -93,6 +124,18 @@ module.exports.GetAllBills = async (data) => {
 module.exports.GetBillsByAccNum = async (data) => {
   try {
     const results = await bills.find({ acc_num: data.acc_number });
+    if (results) {
+      return results;
+    } else {
+      return { error: "No bills found with this account number" };
+    }
+  } catch (err) {
+    return { error: "There is an error" };
+  }
+};
+module.exports.GetBillsByBillNum = async (data) => {
+  try {
+    const results = await bills.find({ billNumber: data.billNumber });
     if (results) {
       return results;
     } else {

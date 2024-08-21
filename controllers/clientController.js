@@ -16,9 +16,10 @@ exports.CreateClient = async (data) => {
       meter_num: data.meter_num,
       contact: data.contact,
       status: data.status,
+      c_address: data.address,
       client_type: data.client_type,
       email: data.email,
-      birthday: data.birthday,
+      install_date: data.install_date,
     });
 
     // Save the new client to the database
@@ -97,15 +98,16 @@ exports.CheckAccount = async (data) => {
     throw new Error("Server error");
   }
 };
-// FIXME: FIND CLIENT BY ID
-// exports.getClientById = async (data) => {
-//   try {
-//     const hasClientID = await client.findById(req.params.id);
-//     if (!hasClientID) {
-//       return res.status(404).json({ message: "Client not found" });
-//     }
-//     res.json(hasClientID);
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
+
+exports.GetClientsByAccNum = async (data) => {
+  try {
+    const hasClientID = await client.find({ acc_num: data.acc_number });
+    if (!hasClientID) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    console.log("Customer Info", hasClientID);
+    return hasClientID;
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

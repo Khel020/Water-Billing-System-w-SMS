@@ -11,32 +11,7 @@ route.get("/clients", auth.BillerOnly, (req, res) => {
     res.send(result);
   });
 });
-route.post("/newclient", (req, res) => {
-  console.log("Adding New Client");
-  console.log(req.body);
-  controller.CreateClient(req.body).then((result) => {
-    res.send(result);
-  });
-});
-route.put("/editClient", (req, res) => {
-  console.log("Updating Client");
-  console.log(req.body);
-  controller.UpdateClientByAccNum(req.body).then((result) => {
-    res.send(result);
-  });
-});
-route.delete("/deleteClient", (req, res) => {
-  console.log("Archiving..");
-  console.log(req.body);
-  controller
-    .ArchiveClient(req.body)
-    .then((result) => {
-      res.send(result);
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-});
+
 route.get("/:id", async (req, res) => {
   try {
     const client = await controller.findById(req.params.acc_num);

@@ -49,14 +49,14 @@ let clientSchema = new mongoose.Schema({
     trim: true,
     required: [true, "Email Required!"],
   },
-  birthday: {
+  install_date: {
     type: Date,
     trim: true,
-    required: [true, "Required!"],
+    required: [true, "Required"],
   },
   isArchive: {
     type: Boolean,
   },
 });
-const CLIENT = mongoose.model("client", clientSchema);
+const CLIENT = mongoose.model("consumers", clientSchema);
 module.exports = CLIENT;

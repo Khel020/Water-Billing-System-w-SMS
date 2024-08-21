@@ -18,17 +18,13 @@ let billSchema = new mongoose.Schema({
     type: String,
     required: [true, "Required!"],
   },
-  consumption: {
-    type: Number,
-    required: [true, "Required!"],
-  },
   dc_date: {
     type: Date,
     required: [true, "Required!"],
   },
   p_charge: {
     type: Number,
-    required: [true, "Required!"],
+    default: 0,
   },
   payment_status: {
     type: String,
@@ -42,6 +38,17 @@ let billSchema = new mongoose.Schema({
   remarks: {
     type: String,
     required: [true, "Required!"],
+  },
+  consumption: {
+    type: Number,
+    required: [true, "Required!"],
+  },
+  rate: { type: Number, required: true },
+  totalAmount: { type: Number, required: true },
+  category: {
+    type: String,
+    enum: ["Residential", "Commercial"],
+    required: true,
   },
 });
 
