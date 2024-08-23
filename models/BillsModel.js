@@ -33,11 +33,9 @@ let billSchema = new mongoose.Schema({
   },
   others: {
     type: String,
-    required: [true, "Required!"],
   },
   remarks: {
     type: String,
-    required: [true, "Required!"],
   },
   consumption: {
     type: Number,

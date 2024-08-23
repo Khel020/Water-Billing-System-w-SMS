@@ -13,11 +13,9 @@ route.get("/customers/:acc_number", auth.AdminOnly, (req, res) => {
     res.send(result);
   });
 });
-route.get("/customers", auth.AdminOnly, (req, res) => {
-  console.log("Getting All Customer");
-  console.log(req.body);
-  customerctrl.GetAllClients(req.body).then((result) => {
-    console.log(result);
+route.get("/customers", (req, res) => {
+  console.log("Getting All Customer with BIll");
+  customerctrl.ConsumersWithBill(req.body).then((result) => {
     res.send(result);
   });
 });
@@ -30,14 +28,14 @@ route.post("/addRates", (req, res) => {
   });
 });
 
-route.post("/newclient", auth.AdminOnly, (req, res) => {
+route.post("/newclient", (req, res) => {
   console.log("Adding New Client");
   console.log(req.body);
   customerctrl.CreateClient(req.body).then((result) => {
     res.send(result);
   });
 });
-route.put("/editClient", auth.AdminOnly, (req, res) => {
+route.put("/editClient", (req, res) => {
   console.log("Updating Client");
   console.log(req.body);
   customerctrl.UpdateClientByAccNum(req.body).then((result) => {

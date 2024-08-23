@@ -121,6 +121,7 @@ module.exports.GetAllBills = async (data) => {
       return { error: "There is an error" };
     });
 };
+
 module.exports.GetBillsByAccNum = async (data) => {
   try {
     const results = await bills.find({ acc_num: data.acc_number });

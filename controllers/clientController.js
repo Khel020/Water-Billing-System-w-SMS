@@ -1,4 +1,5 @@
 const client = require("../models/clientModel.js");
+const bill = require("../models/BillsModel.js");
 const exp = require("express");
 const mng = require("mongoose");
 const env = require("dotenv").config();
@@ -50,14 +51,17 @@ exports.GetAllClients = async () => {
 exports.UpdateClientByAccNum = async (data) => {
   const clientID = data._id;
   const updates = {
-    acc_num: data.acc_num,
     accountName: data.accountName,
     meter_num: data.meter_num,
     contact: data.contact,
     status: data.status,
     client_type: data.client_type,
     email: data.email,
-    birthday: data.birthday,
+    c_address: {
+      house_num: data.c_address.house_num,
+      purok: data.c_address.purok,
+      brgy: data.c_address.brgy,
+    },
   };
   try {
     // Ensure that the `updates` object contains valid fields and values
@@ -110,4 +114,59 @@ exports.GetClientsByAccNum = async (data) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+exports.ConsumersWithBill = async () => {
+  const consumersData = [];
+
+  // Fetch all unique account numbers
+  const accounts = await bill.distinct("acc_num").exec();
+
+  for (const acc_num of accounts) {
+    // Find the latest bill for the current account
+    const latestBill = await bill
+      .findOne({ acc_num })
+      .sort({ reading_date: 1 })
+      .exec();
+
+    if (!latestBill) {
+      console.log(`No bills found for account: ${acc_num}`);
+      continue;
+    }
+
+    // Calculate the total balance for the current account
+    const totalBalances = await bill
+      .aggregate([
+        { $match: { acc_num } }, // Match the specific account number
+        {
+          $group: {
+            _id: "$acc_num", // Group by acc_num (account number)
+            totalBalance: { $sum: "$totalAmount" }, // Sum the totalAmount for each acc_num
+          },
+        },
+      ])
+      .exec();
+    const clientUpdate = await client
+      .findOneAndUpdate(
+        { acc_num }, // Query to find the client document by account number
+        {
+          last_billDate: latestBill.reading_date, // Update with the latest bill's reading date
+          totalBalance: totalBalances[0] ? totalBalances[0].totalBalance : 0, // Update with the calculated total balance, or 0 if not found
+        },
+        {
+          new: true, // Return the updated document
+          upsert: true, // Create a new document if it doesn't exist
+        }
+      )
+      .exec();
+
+    // Collect the result to send to frontend
+    consumersData.push({
+      lastBillDate: latestBill.reading_date,
+      totalBalance: totalBalances[0] ? totalBalances[0].totalBalance : 0,
+      client: clientUpdate,
+    });
+    console.log("Datapush", consumersData);
+  }
+
+  return consumersData;
 };
