@@ -102,7 +102,6 @@ exports.CheckAccount = async (data) => {
     throw new Error("Server error");
   }
 };
-
 exports.GetClientsByAccNum = async (data) => {
   try {
     const hasClientID = await client.find({ acc_num: data.acc_number });
@@ -116,57 +115,48 @@ exports.GetClientsByAccNum = async (data) => {
   }
 };
 exports.ConsumersWithBill = async () => {
-  const consumersData = [];
+  const updatedClients = []; // Array to hold all updated clients
 
-  // Fetch all unique account numbers
-  const accounts = await bill.distinct("acc_num").exec();
+  const bills = await bill.distinct("acc_num").exec();
+  for (const acc_num of bills) {
+    console.log(acc_num);
 
-  for (const acc_num of accounts) {
-    // Find the latest bill for the current account
-    const latestBill = await bill
-      .findOne({ acc_num })
-      .sort({ reading_date: 1 })
-      .exec();
-
-    if (!latestBill) {
-      console.log(`No bills found for account: ${acc_num}`);
-      continue;
-    }
-
-    // Calculate the total balance for the current account
-    const totalBalances = await bill
+    const totalBalanceswithDate = await bill
       .aggregate([
         { $match: { acc_num } }, // Match the specific account number
+        { $sort: { reading_date: 1 } }, // Sort by reading_date descending
         {
           $group: {
             _id: "$acc_num", // Group by acc_num (account number)
+            last_billDate: { $first: "$reading_date" }, // Get the first (latest) reading_date after sorting
             totalBalance: { $sum: "$totalAmount" }, // Sum the totalAmount for each acc_num
           },
         },
       ])
       .exec();
-    const clientUpdate = await client
-      .findOneAndUpdate(
-        { acc_num }, // Query to find the client document by account number
-        {
-          last_billDate: latestBill.reading_date, // Update with the latest bill's reading date
-          totalBalance: totalBalances[0] ? totalBalances[0].totalBalance : 0, // Update with the calculated total balance, or 0 if not found
-        },
-        {
-          new: true, // Return the updated document
-          upsert: true, // Create a new document if it doesn't exist
-        }
-      )
-      .exec();
 
-    // Collect the result to send to frontend
-    consumersData.push({
-      lastBillDate: latestBill.reading_date,
-      totalBalance: totalBalances[0] ? totalBalances[0].totalBalance : 0,
-      client: clientUpdate,
-    });
-    console.log("Datapush", consumersData);
+    if (totalBalanceswithDate.length === 0) {
+      console.log(`No bills found for account: ${acc_num}`);
+      continue; // Move to the next iteration of the loop
+    }
+
+    const { totalBalance, last_billDate } = totalBalanceswithDate[0];
+
+    const updatedClient = await client.findOneAndUpdate(
+      { acc_num },
+      {
+        last_billDate: last_billDate, // Update the last bill date
+        totalBalance: totalBalance, // Update the total balance
+      },
+      { new: true } // Return the updated document
+    );
+
+    console.log("Updated Client Document:", updatedClient);
+
+    if (updatedClient) {
+      updatedClients.push(updatedClient); // Add the updated client to the array
+    }
   }
 
-  return consumersData;
+  return updatedClients; // Return all updated clients
 };

@@ -13,14 +13,13 @@ route.get("/customers/:acc_number", auth.AdminOnly, (req, res) => {
     res.send(result);
   });
 });
-route.get("/customers", (req, res) => {
-  console.log("Getting All Customer with BIll");
+route.get("/customers", auth.AdminOnly, (req, res) => {
   customerctrl.ConsumersWithBill(req.body).then((result) => {
+    console.log(result);
     res.send(result);
   });
 });
-
-route.post("/addRates", (req, res) => {
+route.post("/addRates", auth.AdminOnly, (req, res) => {
   console.log("Adding Rates");
   console.log(req.body);
   ratectrl.addRate(req.body).then((result) => {

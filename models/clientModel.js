@@ -52,11 +52,9 @@ let clientSchema = new mongoose.Schema({
   last_billDate: {
     type: Date,
     trim: true,
-    required: [true, "Required"],
   },
   totalBalance: {
     type: Number,
-    required: [true, "Required"],
   },
   install_date: {
     type: Date,
@@ -69,5 +67,3 @@ let clientSchema = new mongoose.Schema({
 });
 const CLIENT = mongoose.model("consumers", clientSchema);
 module.exports = CLIENT;
-
-function lastestBill() {}

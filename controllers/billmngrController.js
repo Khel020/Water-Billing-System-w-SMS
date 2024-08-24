@@ -71,7 +71,6 @@ module.exports.AddBill = async (data) => {
     penalty = calculatePenalty(totalAmount); // Calculate penalty
     totalAmount += penalty;
   }
-
   const billdata = new bills();
   billdata.acc_num = data.acc_num;
   billdata.reading_date = data.reading_date;
