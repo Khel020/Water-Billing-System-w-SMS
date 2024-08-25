@@ -1,5 +1,6 @@
 const client = require("../models/clientModel.js");
 const bill = require("../models/BillsModel.js");
+const fee = require("../models/FeesModel.js");
 const exp = require("express");
 const mng = require("mongoose");
 const env = require("dotenv").config();
@@ -10,30 +11,56 @@ const pnv = process.env;
 //TODO: Creating Client/ Add Client
 exports.CreateClient = async (data) => {
   try {
+    // Check if the account number or account name is already taken
+    const existingClient = await client.findOne({
+      $or: [{ acc_num: data.acc_num }, { accountName: data.accountName }],
+    });
+
+    if (existingClient) {
+      // If a client with the same account number or account name exists, return an error
+      return {
+        error:
+          "Account number or account name is already taken. Please use a unique value.",
+      };
+    }
     // Create a new client object
     let NewClient = new client({
       acc_num: data.acc_num,
       accountName: data.accountName,
       meter_num: data.meter_num,
-      contact: data.contact,
+      pipe_size: data.pipe_size,
       status: data.status,
+      brand_num: data.brand_num,
+      initial_read: data.initial_read,
       c_address: data.address,
       client_type: data.client_type,
-      email: data.email,
       install_date: data.install_date,
+      activation_date: data.activationDate,
+      installation_fee: data.installation_fee,
+      connection_fee: data.connection_fee,
+      meter_installer: data.meter_installer,
     });
 
-    // Save the new client to the database
     const result = await NewClient.save();
-
-    // Return a success message
-    return { message: "Client successfully created", client: result };
+    const clientFees = new fee({
+      acc_num: data.acc_num,
+      accountName: data.accountName,
+      installation_fee: data.installation_fee,
+      connection_fee: data.connection_fee,
+    });
+    const saveFees = await clientFees.save();
+    return {
+      message: "Client and fees successfully created",
+      client: result,
+      fees: saveFees,
+    };
   } catch (err) {
     // Log and return error message
     console.error(err);
     return { error: "Failed to create client" };
   }
 };
+
 //TODO: Get all the client
 exports.GetAllClients = async () => {
   return await client
@@ -115,48 +142,58 @@ exports.GetClientsByAccNum = async (data) => {
   }
 };
 exports.ConsumersWithBill = async () => {
-  const updatedClients = []; // Array to hold all updated clients
+  try {
+    const updatedClients = [];
 
-  const bills = await bill.distinct("acc_num").exec();
-  for (const acc_num of bills) {
-    console.log(acc_num);
+    // Get distinct account numbers from the bills collection
+    const bills = await bill.distinct("acc_num").exec();
 
-    const totalBalanceswithDate = await bill
-      .aggregate([
-        { $match: { acc_num } }, // Match the specific account number
-        { $sort: { reading_date: 1 } }, // Sort by reading_date descending
-        {
-          $group: {
-            _id: "$acc_num", // Group by acc_num (account number)
-            last_billDate: { $first: "$reading_date" }, // Get the first (latest) reading_date after sorting
-            totalBalance: { $sum: "$totalAmount" }, // Sum the totalAmount for each acc_num
+    if (bills && bills.length > 0) {
+      for (const acc_num of bills) {
+        const totalBalanceswithDate = await bill
+          .aggregate([
+            { $match: { acc_num } },
+            { $sort: { reading_date: -1 } },
+            {
+              $group: {
+                _id: "$acc_num",
+                last_billDate: { $first: "$reading_date" },
+                totalBalance: { $sum: "$totalAmount" },
+              },
+            },
+          ])
+          .exec();
+
+        let totalBalance = 0.0;
+        let last_billDate = null;
+
+        if (totalBalanceswithDate.length > 0) {
+          const result = totalBalanceswithDate[0];
+          totalBalance = result.totalBalance;
+          last_billDate = result.last_billDate || null;
+        }
+
+        const updatedClient = await client.findOneAndUpdate(
+          { acc_num },
+          {
+            last_billDate: last_billDate,
+            totalBalance: parseFloat(totalBalance.toFixed(2)),
           },
-        },
-      ])
-      .exec();
+          { new: true }
+        );
 
-    if (totalBalanceswithDate.length === 0) {
-      console.log(`No bills found for account: ${acc_num}`);
-      continue; // Move to the next iteration of the loop
+        if (updatedClient) {
+          updatedClients.push(updatedClient);
+        }
+      }
+
+      return updatedClients; // Return the updated clients
+    } else {
+      const allClients = await client.find({});
+      return allClients;
     }
-
-    const { totalBalance, last_billDate } = totalBalanceswithDate[0];
-
-    const updatedClient = await client.findOneAndUpdate(
-      { acc_num },
-      {
-        last_billDate: last_billDate, // Update the last bill date
-        totalBalance: totalBalance, // Update the total balance
-      },
-      { new: true } // Return the updated document
-    );
-
-    console.log("Updated Client Document:", updatedClient);
-
-    if (updatedClient) {
-      updatedClients.push(updatedClient); // Add the updated client to the array
-    }
+  } catch (error) {
+    console.error("Error in ConsumersWithBill:", error);
+    throw new Error("Internal Server Error");
   }
-
-  return updatedClients; // Return all updated clients
 };

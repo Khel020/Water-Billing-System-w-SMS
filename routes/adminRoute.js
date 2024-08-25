@@ -14,6 +14,7 @@ route.get("/customers/:acc_number", auth.AdminOnly, (req, res) => {
   });
 });
 route.get("/customers", auth.AdminOnly, (req, res) => {
+  console.log("GETTING CLIENT!");
   customerctrl.ConsumersWithBill(req.body).then((result) => {
     console.log(result);
     res.send(result);

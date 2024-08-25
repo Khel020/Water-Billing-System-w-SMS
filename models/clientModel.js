@@ -23,14 +23,16 @@ let clientSchema = new mongoose.Schema({
       trim: true,
     },
   },
-  contact: {
+  brand_num: {
     type: Number,
-    trim: true,
-    required: [true, "Required!"],
-    maxLength: 11,
   },
   meter_num: {
     type: Number,
+    trim: true,
+    required: [true, "Required!"],
+  },
+  pipe_size: {
+    type: String,
     trim: true,
     required: [true, "Required!"],
   },
@@ -44,16 +46,7 @@ let clientSchema = new mongoose.Schema({
     trim: true,
     required: [true, "Required!"],
   },
-  email: {
-    type: String,
-    trim: true,
-    required: [true, "Email Required!"],
-  },
-  last_billDate: {
-    type: Date,
-    trim: true,
-  },
-  totalBalance: {
+  initial_read: {
     type: Number,
   },
   install_date: {
@@ -61,9 +54,29 @@ let clientSchema = new mongoose.Schema({
     trim: true,
     required: [true, "Required"],
   },
+  activation_date: {
+    type: Date,
+    trim: true,
+    required: [true, "Required"],
+  },
+  meter_installer: {
+    type: String,
+    trim: true,
+    required: [true, "Required"],
+  },
+  last_billDate: {
+    type: Date,
+    default: null, // Set default to null
+  },
+  totalBalance: {
+    type: Number,
+    default: 0.0, // Set default to 0.0
+  },
   isArchive: {
     type: Boolean,
+    default: false, // Default value for isArchive
   },
 });
+
 const CLIENT = mongoose.model("consumers", clientSchema);
 module.exports = CLIENT;

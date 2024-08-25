@@ -4,14 +4,12 @@ const controller = require("../controllers/clientController.js");
 const auth = require("../middleware/Auth.js");
 
 module.exports = route;
-
 route.get("/clients", auth.BillerOnly, (req, res) => {
   console.log("Loading Clients");
-  controller.GetAllClients(req.body).then((result) => {
+  controller.ConsumersWithBill(req.body).then((result) => {
     res.send(result);
   });
 });
-
 route.get("/:id", async (req, res) => {
   try {
     const client = await controller.findById(req.params.acc_num);

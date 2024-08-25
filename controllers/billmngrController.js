@@ -1,6 +1,7 @@
 const biller = require("../models/BillMngr");
 const bills = require("../models/BillsModel");
 const Rate = require("../models/ratesModel");
+const Client = require("../models/clientModel");
 const exp = require("express");
 const mng = require("mongoose");
 const env = require("dotenv").config();
@@ -57,57 +58,85 @@ exports.CreateBillingMngr = async (data) => {
 };
 
 module.exports.AddBill = async (data) => {
-  const rate = await Rate.findOne({
-    category: data.category,
-    minConsumption: { $lte: data.consumption },
-    maxConsumption: { $gte: data.consumption },
-  });
-  const dueDate = calculateDueDate(data.reading_date);
-  let totalAmount = data.consumption * rate.rate;
-  let penalty = 0;
+  const results = [];
 
-  const currentDate = new Date();
-  if (currentDate > dueDate) {
-    penalty = calculatePenalty(totalAmount); // Calculate penalty
-    totalAmount += penalty;
-  }
-  const billdata = new bills();
-  billdata.acc_num = data.acc_num;
-  billdata.reading_date = data.reading_date;
-  billdata.due_date = data.due_date;
-  billdata.accountName = data.accountName;
-  billdata.consumption = data.consumption;
-  billdata.dc_date = data.dc_date;
-  billdata.category = data.category;
-  billdata.totalAmount = totalAmount;
-  billdata.rate = rate.rate;
-  billdata.p_charge = penalty;
-  billdata.others = data.others;
-  billdata.remarks = data.remarks;
+  try {
+    for (const billData of data) {
+      // Validate if the client exists with the given acc_num and accountName
+      const clientExists = await Client.findOne({
+        acc_num: billData.acc_num,
+        accountName: billData.accountName,
+      });
 
-  return billdata
-    .save()
-    .then((result) => {
-      if (result) {
-        return { message: "Add Bill Successfull" };
+      if (!clientExists) {
+        // If the client does not exist, skip adding the bill and log an error message
+        results.push({
+          error: `Client with account number ${billData.acc_num} and name ${billData.accountName} does not exist.`,
+        });
+        continue; // Skip to the next bill
       }
-    })
-    .catch((err) => {
-      return { error: "There is an error" + err };
-    });
-};
 
+      // Find the rate for the given category and consumption range
+      const rate = await Rate.findOne({
+        category: billData.category,
+        minConsumption: { $lte: billData.consumption },
+        maxConsumption: { $gte: billData.consumption },
+      });
+
+      if (!rate) {
+        // If no rate is found, skip adding the bill and log an error message
+        results.push({
+          error: `No rate found for category ${billData.category} and consumption ${billData.consumption}.`,
+        });
+        continue; // Skip to the next bill
+      }
+
+      const dueDate = calculateDueDate(billData.reading_date);
+      let totalAmount = billData.consumption * rate.rate;
+      let penalty = 0;
+
+      const currentDate = new Date();
+      if (currentDate > dueDate) {
+        penalty = calculatePenalty(totalAmount);
+        totalAmount += penalty;
+      }
+
+      // Create a new bill object
+      const newBill = new bills({
+        acc_num: billData.acc_num,
+        reading_date: billData.reading_date,
+        due_date: billData.due_date,
+        accountName: billData.accountName,
+        consumption: billData.consumption,
+        dc_date: billData.dc_date,
+        present_read: billData.present_read,
+        category: billData.category,
+        totalAmount: totalAmount,
+        rate: rate.rate,
+        p_charge: penalty,
+        others: billData.others,
+        remarks: billData.remarks,
+      });
+
+      // Save the bill to the database
+      const result = await newBill.save();
+      results.push(result); // Store the result for each bill
+      return { message: "All bills added successfully", data: results };
+    }
+    return { message: "Not Successfull", data: results };
+  } catch (err) {
+    return { error: "There was an error: " + err };
+  }
+};
 function calculateDueDate(readingDate) {
   const dueDate = new Date(readingDate);
-  dueDate.setDate(dueDate.getDate() + 30);
+  dueDate.setDate(dueDate.getDate() + 30); // Example: Set due date 30 days after the reading date
   return dueDate;
 }
-
 function calculatePenalty(totalAmount) {
-  const penaltyRate = 0.1; //Edit if iba ang ratings for penalty
+  const penaltyRate = 0.1; // Example: 10% penalty
   return totalAmount * penaltyRate;
 }
-
 module.exports.GetAllBills = async (data) => {
   return await bills
     .find({})

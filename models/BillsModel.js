@@ -18,12 +18,23 @@ let billSchema = new mongoose.Schema({
     type: String,
     required: [true, "Required!"],
   },
+  present_read: {
+    type: Number,
+    required: [true, "Present Reading Required"],
+  },
+  prev_read: {
+    type: Number,
+  },
+  consumption: {
+    type: Number,
+    required: [true, "Required!"],
+  },
   dc_date: {
     type: Date,
     required: [true, "Required!"],
   },
   p_charge: {
-    type: Number,
+    type: Number, //Amount After Due Date
     default: 0,
   },
   payment_status: {
@@ -37,10 +48,7 @@ let billSchema = new mongoose.Schema({
   remarks: {
     type: String,
   },
-  consumption: {
-    type: Number,
-    required: [true, "Required!"],
-  },
+
   rate: { type: Number, required: true },
   totalAmount: { type: Number, required: true },
   category: {
