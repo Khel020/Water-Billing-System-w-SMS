@@ -145,11 +145,14 @@ exports.ConsumersWithBill = async () => {
   try {
     const updatedClients = [];
 
-    // Get distinct account numbers from the bills collection
-    const bills = await bill.distinct("acc_num").exec();
+    // Get all clients
+    const allClients = await client.find({}).exec();
 
-    if (bills && bills.length > 0) {
-      for (const acc_num of bills) {
+    // Get distinct account numbers from the bills collection
+    const billAccNumbers = await bill.distinct("acc_num").exec();
+
+    if (billAccNumbers && billAccNumbers.length > 0) {
+      for (const acc_num of billAccNumbers) {
         const totalBalanceswithDate = await bill
           .aggregate([
             { $match: { acc_num } },
@@ -187,13 +190,30 @@ exports.ConsumersWithBill = async () => {
         }
       }
 
-      return updatedClients; // Return the updated clients
+      // Combine updated clients with those who don't have bills
+      const clientsWithoutBills = allClients.filter(
+        (client) => !billAccNumbers.includes(client.acc_num)
+      );
+
+      return [...updatedClients, ...clientsWithoutBills]; // Return all clients, updated and non-updated
     } else {
-      const allClients = await client.find({});
-      return allClients;
+      return allClients; // If no bills exist, return all clients as is
     }
   } catch (error) {
     console.error("Error in ConsumersWithBill:", error);
     throw new Error("Internal Server Error");
+  }
+};
+
+exports.GetTotalClients = async () => {
+  try {
+    const totalClients = await client.countDocuments();
+    const activeClients = await client.countDocuments({ status: "Active" });
+    const inactiveClients = await client.countDocuments({ status: "Inactive" });
+
+    return { totalClients, activeClients, inactiveClients };
+  } catch (error) {
+    console.error("Error fetching client statistics:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };

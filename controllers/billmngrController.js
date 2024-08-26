@@ -153,6 +153,7 @@ module.exports.GetAllBills = async (data) => {
 module.exports.GetBillsByAccNum = async (data) => {
   try {
     const results = await bills.find({ acc_num: data.acc_number });
+
     if (results) {
       return results;
     } else {
@@ -174,3 +175,45 @@ module.exports.GetBillsByBillNum = async (data) => {
     return { error: "There is an error" };
   }
 };
+module.exports.findBillsPayment = async (data) => {
+  try {
+    // Hanapin ang client base sa account number
+    const client = await Client.findOne({ acc_num: data.acc_number }).exec();
+
+    if (client) {
+      console.log("Welcome:", client.accountName);
+
+      // Kunin ang lahat ng distinct account numbers mula sa bills
+      const distinctAccNums = await bills.distinct("acc_num").exec();
+      console.log("All Bills of Client", distinctAccNums);
+
+      // Iterate sa lahat ng distinct account numbers at hanapin ang mga bill
+      for (const accNum of distinctAccNums) {
+        if (accNum === client.acc_num) {
+          // Hanapin ang mga bill base sa account number
+          const consumerBills = await bills.find({ acc_num: accNum }).exec();
+
+          // Kalkulahin ang kabuuang halaga ng mga bill
+          const totalBill = consumerBills.reduce(
+            (sum, bill) => sum + bill.totalAmount,
+            0
+          );
+          const consumerName = client.accountName;
+          const address = client.c_address;
+          console.log("ADDRESS", address);
+          console.log("Bills:", client.accountName, consumerBills);
+          console.log("Total Bill:", totalBill);
+
+          // I-return ang bills at kabuuang halaga sa frontend
+          return { consumerBills, totalBill, consumerName, address };
+        }
+      }
+    } else {
+      console.log("Client not found.");
+    }
+  } catch (error) {
+    console.error("Error finding bills payment:", error);
+  }
+};
+
+module.exports.AddPayment = async (data) => {};

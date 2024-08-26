@@ -10,6 +10,7 @@ route.get("/clients", auth.BillerOnly, (req, res) => {
     res.send(result);
   });
 });
+
 route.get("/:id", async (req, res) => {
   try {
     const client = await controller.findById(req.params.acc_num);
