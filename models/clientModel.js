@@ -64,6 +64,10 @@ let clientSchema = new mongoose.Schema({
     trim: true,
     required: [true, "Required"],
   },
+  advancePayment: {
+    type: Number,
+    default: 0,
+  },
   last_billDate: {
     type: Date,
     default: null, // Set default to null

@@ -63,9 +63,16 @@ route.get("/status", async (req, res) => {
 });
 route.post("/newPayment", (req, res) => {
   console.log("New Payment Transaction");
+  console.log("REQ BODY", req.body);
   biller.AddPayment(req.body).then((result) => {
-    if (result) {
-      res.send(result);
-    }
+    res.send(result);
+  });
+});
+route.post("/calculateChange", (req, res) => {
+  console.log("Calculating Charge:");
+  console.log(req.body);
+  biller.calculateChange(req.body).then((result) => {
+    console.log("Result", result);
+    res.send(result);
   });
 });

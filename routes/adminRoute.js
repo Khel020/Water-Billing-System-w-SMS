@@ -62,6 +62,7 @@ route.get("/admins", (req, res) => {
     res.send(result);
   });
 });
+
 route.post("/add", (req, res) => {
   console.log("Adding Admin Acc");
   console.log(req.body);

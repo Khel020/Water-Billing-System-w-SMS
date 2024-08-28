@@ -181,39 +181,112 @@ module.exports.findBillsPayment = async (data) => {
     const client = await Client.findOne({ acc_num: data.acc_number }).exec();
 
     if (client) {
+      // Retrieve bills associated with the client
+      const consumerBills = await bills
+        .find({ acc_num: client.acc_num })
+        .exec();
+
+      // Calculate total amount and penalty charge
+      const totalBill = consumerBills
+        .reduce((sum, bill) => sum + bill.totalAmount, 0)
+        .toFixed(2);
+      const totalPenalty = consumerBills
+        .reduce((sum, bill) => sum + (bill.p_charge || 0), 0)
+        .toFixed(2);
+
       console.log("Welcome:", client.accountName);
+      console.log("ADDRESS", client.c_address);
+      console.log("Bills Number:", consumerBills);
+      console.log("Total Bill:", totalBill);
+      console.log("Total Penalty:", totalPenalty);
 
-      // Kunin ang lahat ng distinct account numbers mula sa bills
-      const distinctAccNums = await bills.distinct("acc_num").exec();
-      console.log("All Bills of Client", distinctAccNums);
-
-      // Iterate sa lahat ng distinct account numbers at hanapin ang mga bill
-      for (const accNum of distinctAccNums) {
-        if (accNum === client.acc_num) {
-          // Hanapin ang mga bill base sa account number
-          const consumerBills = await bills.find({ acc_num: accNum }).exec();
-
-          // Kalkulahin ang kabuuang halaga ng mga bill
-          const totalBill = consumerBills.reduce(
-            (sum, bill) => sum + bill.totalAmount,
-            0
-          );
-          const consumerName = client.accountName;
-          const address = client.c_address;
-          console.log("ADDRESS", address);
-          console.log("Bills:", client.accountName, consumerBills);
-          console.log("Total Bill:", totalBill);
-
-          // I-return ang bills at kabuuang halaga sa frontend
-          return { consumerBills, totalBill, consumerName, address };
-        }
-      }
+      // I-return ang bills at kabuuang halaga sa frontend
+      return {
+        consumerBills,
+        totalBill,
+        totalPenalty,
+        consumerName: client.accountName,
+        address: client.c_address,
+      };
     } else {
       console.log("Client not found.");
+      return {
+        consumerBills: [],
+        totalBill: 0,
+        totalPenalty: 0,
+        consumerName: null,
+        address: null,
+      };
     }
   } catch (error) {
     console.error("Error finding bills payment:", error);
+    return {
+      consumerBills: [],
+      totalBill: 0,
+      totalPenalty: 0,
+      consumerName: null,
+      address: null,
+    };
+  }
+};
+module.exports.calculateChange = async (data) => {
+  try {
+    // Validate input data
+    if (!data.acc_num || !data.paymentAmount) {
+      return { success: false, message: "Invalid input data" };
+    }
+    // Find the client by account number
+    const client = await Client.findOne({ acc_num: data.acc_num }).exec();
+
+    if (!client) {
+      return { success: false, message: "Client not found" };
+    }
+
+    const newBalance = client.totalBalance - data.paymentAmount;
+    let change = 0;
+
+    if (newBalance < 0) {
+      change = Math.abs(newBalance); // Calculate the change amount
+    }
+    return { success: true, change };
+  } catch (error) {
+    console.error("Error calculating change:", error.message);
+    return { success: false, message: "Error calculating change" };
   }
 };
 
-module.exports.AddPayment = async (data) => {};
+module.exports.AddPayment = async (data) => {
+  try {
+    // Find the client by account number
+    const clientToUpdate = await Client.findOneAndUpdate(
+      {
+        acc_num: data.acc_num,
+      },
+      {
+        totalBalance: data.balance,
+      }
+    ).exec();
+
+    // if (clientToUpdate) {
+    //   const newBalance = clientToUpdate.totalBalance - data.paymentAmount;
+
+    //   if (newBalance < 0) {
+    //     const change = Math.abs(newBalance); // Calculate the change amount
+    //     clientToUpdate.totalBalance = 0; // Set balance to zero
+    //     clientToUpdate.change = change;
+    //   } else {
+    //     clientToUpdate.totalBalance = newBalance;
+    //     clientToUpdate.advancePayment = 0;
+    //     clientToUpdate.change = 0;
+    //   }
+
+    //   await clientToUpdate.save();
+    //   return { success: true, change: clientToUpdate.change };
+    // } else {
+    //   return { success: false, message: "Client not found" };
+    // }
+  } catch (error) {
+    console.error("Error processing payment:", error);
+    return { success: false, message: "Error processing payment" };
+  }
+};
