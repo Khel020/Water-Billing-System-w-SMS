@@ -84,3 +84,10 @@ route.put("/editAdmin", (req, res) => {
     res.send(result);
   });
 });
+route.post("/generate_accNum", (req, res) => {
+  console.log("Generating Acc Number");
+  console.log(req.body);
+  customerctrl.generateAccountNumber(req.body).then((result) => {
+    res.send(result);
+  });
+});

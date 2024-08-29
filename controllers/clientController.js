@@ -25,7 +25,7 @@ exports.CreateClient = async (data) => {
     }
     // Create a new client object
     let NewClient = new client({
-      acc_num: data.acc_num,
+      acc_num: data.accountNumber,
       accountName: data.accountName,
       meter_num: data.meter_num,
       pipe_size: data.pipe_size,
@@ -39,6 +39,7 @@ exports.CreateClient = async (data) => {
       installation_fee: data.installation_fee,
       connection_fee: data.connection_fee,
       meter_installer: data.meter_installer,
+      zone: data.zone,
     });
 
     const result = await NewClient.save();
@@ -216,4 +217,53 @@ exports.GetTotalClients = async () => {
     console.error("Error fetching client statistics:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
+};
+
+exports.generateAccountNumber = async (data) => {
+  // Find the latest consumer in the specified zone
+  const latestConsumer = await client
+    .findOne({ zone: data.zone })
+    .sort({ sequenceNumber: -1 })
+    .exec();
+
+  let zone = data.zone;
+  let c_type;
+  let book = 1; // Default starting book
+  let sequenceNumber = 1; // Start with 001
+
+  // Map client type to group classification numbers
+  switch (data.c_type) {
+    case "Residential":
+      c_type = 102;
+      break;
+    case "Government":
+      c_type = 202;
+      break;
+    case "Commercial":
+      c_type = 303;
+      break;
+    default:
+      throw new Error("Invalid client type");
+  }
+
+  if (latestConsumer) {
+    // Increment the sequence number
+    sequenceNumber = latestConsumer.sequenceNumber + 1;
+
+    // Check if sequence number exceeds 999
+    if (sequenceNumber > 999) {
+      book = latestConsumer.book + 1; // Move to the next book
+      sequenceNumber = 1; // Reset sequence to 001
+    } else {
+      book = latestConsumer.book; // Keep the current book
+    }
+  }
+
+  // Format the sequence number as three digits (e.g., 001, 002)
+  const formattedSequence = String(sequenceNumber).padStart(3, "0");
+
+  // Combine all parts to form the account number
+  const accountNumber = `${zone}${book}-${c_type}-${formattedSequence}`;
+
+  return { accountNumber };
 };

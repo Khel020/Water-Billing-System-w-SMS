@@ -2,26 +2,28 @@ const mongoose = require("mongoose");
 const AutoIncrement = require("mongoose-sequence")(mongoose);
 let Payments = new mongoose.Schema({
   acc_num: {
-    type: Number,
+    type: String,
     require: true,
   },
   accountName: {
     type: String,
     require: true,
   },
-  billNumber: {
-    type: Number,
-    require: true,
-  },
   address: {
-    type: String,
-    require: true,
+    house_num: {
+      type: Number,
+      require: true,
+    },
+    purok: {
+      type: Number,
+      require: true,
+    },
+    brgy: {
+      type: String,
+      require: true,
+    },
   },
   amountDue: {
-    type: Number,
-    require: true,
-  },
-  payment_amount: {
     type: Number,
     require: true,
   },
@@ -46,5 +48,5 @@ let Payments = new mongoose.Schema({
   },
 });
 Payments.plugin(AutoIncrement, { inc_field: "OR_NUM" });
-const payments = mongoose.model("bills", Payments);
+const payments = mongoose.model("Payments", Payments);
 module.exports = payments;

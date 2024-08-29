@@ -10,6 +10,15 @@ let clientSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  zone: {
+    type: String,
+    required: true,
+  }, // e.g., '01' for Zone 1
+  book: {
+    type: Number,
+    required: true,
+    default: 1,
+  }, // Starts with Book 1
   c_address: {
     house_num: {
       type: Number,
@@ -80,6 +89,9 @@ let clientSchema = new mongoose.Schema({
     type: Boolean,
     default: false, // Default value for isArchive
   },
+  sequenceNumber: {
+    type: Number,
+  }, // Sequential number (001-999)
 });
 
 const CLIENT = mongoose.model("consumers", clientSchema);

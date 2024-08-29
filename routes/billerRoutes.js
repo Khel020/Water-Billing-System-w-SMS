@@ -65,6 +65,7 @@ route.post("/newPayment", (req, res) => {
   console.log("New Payment Transaction");
   console.log("REQ BODY", req.body);
   biller.AddPayment(req.body).then((result) => {
+    console.log("Result", result);
     res.send(result);
   });
 });

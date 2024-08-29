@@ -2,6 +2,7 @@ const biller = require("../models/BillMngr");
 const bills = require("../models/BillsModel");
 const Rate = require("../models/ratesModel");
 const Client = require("../models/clientModel");
+const Payment = require("../models/payments");
 const exp = require("express");
 const mng = require("mongoose");
 const env = require("dotenv").config();
@@ -69,47 +70,94 @@ module.exports.AddBill = async (data) => {
       });
 
       if (!clientExists) {
-        // If the client does not exist, skip adding the bill and log an error message
         results.push({
           error: `Client with account number ${billData.acc_num} and name ${billData.accountName} does not exist.`,
         });
         continue; // Skip to the next bill
       }
 
+      let previousReading = 0;
+
+      // Find the latest bill of the client, if exists
+      const latestBill = await bills
+        .findOne({ acc_num: billData.acc_num })
+        .sort({ reading_date: -1 })
+        .exec();
+
+      if (latestBill) {
+        // Use the present reading of the latest bill as the previous reading for the new bill
+        previousReading = latestBill.present_read || 0;
+      } else if (clientExists.initial_read) {
+        // If no previous bill exists but the client has an initial reading, use it
+        previousReading = clientExists.initial_read;
+      }
+
+      // Calculate consumption by subtracting previous reading from the present reading
+      const consumption = billData.present_read - previousReading;
+
+      // Ensure consumption is non-negative; otherwise, skip this bill
+      if (consumption < 0) {
+        results.push({
+          error: `Invalid consumption: Present reading (${billData.present_read}) is less than previous reading (${previousReading}).`,
+        });
+        continue;
+      }
+
       // Find the rate for the given category and consumption range
       const rate = await Rate.findOne({
         category: billData.category,
-        minConsumption: { $lte: billData.consumption },
-        maxConsumption: { $gte: billData.consumption },
+        minConsumption: { $lte: consumption },
+        maxConsumption: { $gte: consumption },
       });
 
       if (!rate) {
-        // If no rate is found, skip adding the bill and log an error message
         results.push({
-          error: `No rate found for category ${billData.category} and consumption ${billData.consumption}.`,
+          error: `No rate found for category ${billData.category} and consumption ${consumption}.`,
         });
         continue; // Skip to the next bill
       }
 
       const dueDate = calculateDueDate(billData.reading_date);
-      let totalAmount = billData.consumption * rate.rate;
+      const disconnect_Date = calculateDC(dueDate);
+      let totalAmount = consumption * rate.rate;
       let penalty = 0;
 
+      // Calculate penalty if due date has passed
       const currentDate = new Date();
       if (currentDate > dueDate) {
         penalty = calculatePenalty(totalAmount);
         totalAmount += penalty;
       }
 
-      // Create a new bill object
+      // Consider any advance payment by the client
+      let totalAdvancePayment = clientExists.advancePayment || 0;
+
+      // Deduct advance payment from the total amount
+      if (totalAdvancePayment > 0) {
+        if (totalAdvancePayment >= totalAmount) {
+          totalAdvancePayment -= totalAmount; // Use the advance payment to cover the total amount
+          totalAmount = 0; // No remaining balance to be paid
+        } else {
+          totalAmount -= totalAdvancePayment; // Subtract the advance payment from the total amount
+          totalAdvancePayment = 0; // Advance payment is fully used
+        }
+        // Update the client's advance payment in the database
+        await Client.updateOne(
+          { acc_num: billData.acc_num },
+          { advancePayment: totalAdvancePayment }
+        );
+      }
+
+      // Create a new bill object with the calculated consumption
       const newBill = new bills({
         acc_num: billData.acc_num,
         reading_date: billData.reading_date,
-        due_date: billData.due_date,
+        due_date: dueDate,
         accountName: billData.accountName,
-        consumption: billData.consumption,
-        dc_date: billData.dc_date,
+        consumption: consumption, // Set calculated consumption
+        dc_date: disconnect_Date,
         present_read: billData.present_read,
+        prev_read: previousReading, // Set the previous reading
         category: billData.category,
         totalAmount: totalAmount,
         rate: rate.rate,
@@ -121,17 +169,23 @@ module.exports.AddBill = async (data) => {
       // Save the bill to the database
       const result = await newBill.save();
       results.push(result); // Store the result for each bill
-      return { message: "All bills added successfully", data: results };
     }
-    return { message: "Not Successfull", data: results };
+
+    return { message: "All bills added successfully", data: results };
   } catch (err) {
-    return { error: "There was an error: " + err };
+    return { error: `There was an error: ${err.message}` };
   }
 };
+
 function calculateDueDate(readingDate) {
   const dueDate = new Date(readingDate);
-  dueDate.setDate(dueDate.getDate() + 30); // Example: Set due date 30 days after the reading date
+  dueDate.setDate(dueDate.getDate() + 16);
   return dueDate;
+}
+function calculateDC(DUE_DATE) {
+  const DC_DATE = new Date(DUE_DATE);
+  DC_DATE.setDate(DC_DATE.getDate() + 7);
+  return DC_DATE;
 }
 function calculatePenalty(totalAmount) {
   const penaltyRate = 0.1; // Example: 10% penalty
@@ -256,37 +310,59 @@ module.exports.calculateChange = async (data) => {
 };
 
 module.exports.AddPayment = async (data) => {
+  const results = [];
   try {
-    // Find the client by account number
+    const newPayment = new Payment({
+      acc_num: data.acc_num,
+      accountName: data.acc_name,
+      address: data.address,
+      paid: data.paymentAmount,
+      balance: 0,
+      change: data.totalChange,
+    });
+
+    // Save the new payment and add the result to the results array
+    const paymentResult = await newPayment.save();
+    results.push(paymentResult);
+
     const clientToUpdate = await Client.findOneAndUpdate(
+      { acc_num: data.acc_num },
       {
-        acc_num: data.acc_num,
+        totalBalance: 0,
+        advancePayment: data.advTotalAmount,
       },
-      {
-        totalBalance: data.balance,
-      }
+      { new: true }
     ).exec();
 
-    // if (clientToUpdate) {
-    //   const newBalance = clientToUpdate.totalBalance - data.paymentAmount;
+    // Check if the client was found and updated
+    if (!clientToUpdate) {
+      // If not found, return early with a client not found message
+      return { success: false, message: "Client not found" };
+    }
 
-    //   if (newBalance < 0) {
-    //     const change = Math.abs(newBalance); // Calculate the change amount
-    //     clientToUpdate.totalBalance = 0; // Set balance to zero
-    //     clientToUpdate.change = change;
-    //   } else {
-    //     clientToUpdate.totalBalance = newBalance;
-    //     clientToUpdate.advancePayment = 0;
-    //     clientToUpdate.change = 0;
-    //   }
+    // Update bills related to the client if the client update was successful
+    await bills
+      .updateMany(
+        { acc_num: clientToUpdate.acc_num },
+        {
+          totalAmount: 0,
+          payment_status: "Paid",
+        }
+      )
+      .exec();
 
-    //   await clientToUpdate.save();
-    //   return { success: true, change: clientToUpdate.change };
-    // } else {
-    //   return { success: false, message: "Client not found" };
-    // }
+    return {
+      success: true,
+      message: "Payment processed successfully",
+      data: results,
+    };
   } catch (error) {
+    // Log the error for debugging purposes and return a failure response
     console.error("Error processing payment:", error);
-    return { success: false, message: "Error processing payment" };
+    return {
+      success: false,
+      message: "Error processing payment",
+      error: error.message,
+    };
   }
 };
