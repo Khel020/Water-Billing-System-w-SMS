@@ -86,8 +86,6 @@ exports.UpdateAdminByID = async (data) => {
     return { message: "Error updating admin", error: error.message };
   }
 };
-
-// Sample backend function to get and send users data
 exports.GetAllUsers = async (req, res) => {
   try {
     // Fetch data from each collection
@@ -138,5 +136,55 @@ exports.GetAllUsers = async (req, res) => {
         stack: error.stack, // Include stack trace in development environment only
       },
     });
+  }
+};
+exports.updateAccountStatus = async (req, res) => {
+  try {
+    const accountID = req._id;
+    const usertype = req.usertype;
+    const status = req.status;
+
+    let model; // This will hold the model to be updated
+
+    // Determine which model to use based on user type
+    if (usertype === "admin") {
+      model = admin;
+    } else if (usertype === "billmngr") {
+      model = biller;
+    } else if (usertype === "users") {
+      model = users;
+    } else {
+      return {
+        success: false,
+        message: "Invalid user type",
+      };
+    }
+
+    const newStatus = status === "active" ? "deactivated" : "active";
+
+    const updateStatus = await model.findByIdAndUpdate(
+      accountID,
+      { status: newStatus },
+      { new: true } // Return the updated document
+    );
+
+    if (updateStatus) {
+      return {
+        success: true,
+        message: "Account Status Updated",
+        data: updateStatus,
+      };
+    } else {
+      return {
+        success: false,
+        message: "Account not found",
+      };
+    }
+  } catch (error) {
+    console.error("Error updating account status:", error);
+    return {
+      success: false,
+      message: "Internal server error",
+    };
   }
 };

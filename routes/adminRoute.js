@@ -13,6 +13,18 @@ route.get("/customers/:acc_number", auth.AdminOnly, (req, res) => {
     res.send(result);
   });
 });
+route.put("/updateAccountStatus", async (req, res) => {
+  try {
+    console.log("Updating Status");
+    console.log(req.body);
+
+    const result = await controller.updateAccountStatus(req.body);
+    res.send(result);
+  } catch (error) {
+    console.error("Error updating account status:", error);
+    res.status(500).send({ error: "Internal server error" });
+  }
+});
 route.get("/customers", (req, res) => {
   console.log("GETTING CLIENT!");
   customerctrl.ConsumersWithBill(req.body).then((result) => {
