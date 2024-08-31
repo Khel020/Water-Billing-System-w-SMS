@@ -1,6 +1,10 @@
 const mongoose = require("mongoose");
 
 let userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, "Name Required!"],
+  },
   username: {
     type: String,
     required: [true, "Username Required!"],
@@ -23,6 +27,10 @@ let userSchema = new mongoose.Schema({
     required: [true, "Required!"],
     unique: [true, "Account Number Already Taken!"],
   },
+  address: {
+    type: String,
+    trim: true,
+  },
   meter_num: {
     type: Number,
     trim: true,
@@ -43,6 +51,14 @@ let userSchema = new mongoose.Schema({
     type: String,
     required: true,
     default: "users",
+  },
+  dateCreated: {
+    type: Date,
+  },
+  status: {
+    type: String,
+    enum: ["active", "deactivated"],
+    default: "active",
   },
 });
 

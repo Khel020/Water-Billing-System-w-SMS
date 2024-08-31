@@ -91,3 +91,19 @@ route.post("/generate_accNum", (req, res) => {
     res.send(result);
   });
 });
+// Corrected route setup with async/await
+route.get("/GetAllUsers", async (req, res) => {
+  try {
+    console.log("Getting All Users");
+
+    // Call the GetAllUsers function and handle it within this block
+    await controller.GetAllUsers(req, res); // Directly pass req and res
+  } catch (error) {
+    // Handle any unexpected errors
+    res.status(500).json({
+      success: false,
+      message: "Failed to get users",
+      error: error.message,
+    });
+  }
+});

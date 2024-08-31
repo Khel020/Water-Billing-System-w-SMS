@@ -1,4 +1,5 @@
 const user = require("../models/usersModel.js");
+const client = require("../models/clientModel.js");
 const exp = require("express");
 const mng = require("mongoose");
 const env = require("dotenv").config();
@@ -12,6 +13,16 @@ let passHash = (password) => {
 
 exports.CreateUser = async (data) => {
   try {
+    // Check if the user is in the client collection (consumer)
+    const checkInClient = await client.findOne({
+      $or: [
+        { accountName: data.username },
+        { acc_num: data.acc_num },
+        { meter_num: data.meter_num },
+      ],
+    });
+
+    // Check if the user already exists in the user collection
     const account = await user.findOne({
       $or: [
         { username: data.username },
@@ -20,8 +31,16 @@ exports.CreateUser = async (data) => {
         { email: data.email },
       ],
     });
-    console.log("Account found: ", account);
-    console.log("Data received: ", data);
+
+    console.log("Account found in users: ", account);
+    console.log("Account Found in Consumers", checkInClient);
+
+    // If user is not a consumer, return an error
+    if (!checkInClient) {
+      return { success: false, message: "User is not a consumer" };
+    }
+
+    // If account exists, check for conflicts
     if (account) {
       const errors = {};
       if (account.username === data.username) {
@@ -40,21 +59,25 @@ exports.CreateUser = async (data) => {
       return { success: false, errors };
     }
 
+    // Create a new user if no conflicts
     const NewUser = new user({
       username: data.username,
       password: passHash(data.password),
+      name: `${data.fname} ${data.lastname}`, // Concatenate first and last name
       contact: data.contact,
       acc_num: data.acc_num,
       meter_num: data.meter_num,
       birthday: data.birthday,
       email: data.email,
+      dateCreated: new Date(),
     });
 
+    // Save the new user to the database
     const result = await NewUser.save();
     if (result) {
       return { success: true };
     } else {
-      return { message: "No result" };
+      return { success: false, message: "Failed to save the new user" };
     }
   } catch (err) {
     console.error(err);

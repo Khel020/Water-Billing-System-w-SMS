@@ -19,12 +19,7 @@ let adminSchema = new mongoose.Schema({
     required: [true, "Required!"],
     maxLength: 11,
   },
-  fname: {
-    type: String,
-    trim: true,
-    required: [true, "Required!"],
-  },
-  lastname: {
+  name: {
     type: String,
     trim: true,
     required: [true, "Required!"],
@@ -36,18 +31,8 @@ let adminSchema = new mongoose.Schema({
     sparse: true,
   },
   address: {
-    brgy: {
-      type: String,
-      trim: true,
-    },
-    municipality: {
-      type: String,
-      trim: true,
-    },
-    province: {
-      type: String,
-      trim: true,
-    },
+    type: String,
+    trim: true,
   },
   usertype: {
     type: String,
@@ -57,6 +42,14 @@ let adminSchema = new mongoose.Schema({
   isAdmin: {
     type: Boolean,
     default: true,
+  },
+  dateCreated: {
+    type: Date,
+  },
+  status: {
+    type: String,
+    enum: ["active", "deactivated"],
+    default: "active",
   },
 });
 const ADMIN = mongoose.model("admin", adminSchema);
