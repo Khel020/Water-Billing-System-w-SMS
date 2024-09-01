@@ -77,3 +77,13 @@ route.post("/calculateChange", (req, res) => {
     res.send(result);
   });
 });
+route.get("/getPayments/:acc_num", async (req, res) => {
+  const acc_num = req.params.acc_num;
+  try {
+    biller.GetPaymentsAccNum(acc_num).then((result) => {
+      res.json(result);
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message }); // Respond with error message if something goes wrong
+  }
+});

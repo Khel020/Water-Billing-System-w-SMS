@@ -319,6 +319,7 @@ module.exports.AddPayment = async (data) => {
       acc_num: data.acc_num,
       accountName: data.acc_name,
       address: data.address,
+      paymentDate: data.p_date,
       tendered: data.paymentAmount,
       amountDue: data.balance,
       change: data.totalChange,
@@ -368,5 +369,14 @@ module.exports.AddPayment = async (data) => {
       message: "Error processing payment",
       error: error.message,
     };
+  }
+};
+module.exports.GetPaymentsAccNum = async (acc_num) => {
+  try {
+    const result = await Payment.find({ acc_num: acc_num }).exec();
+    return result;
+  } catch (error) {
+    console.error("Error fetching payments:", error);
+    throw new Error("Error fetching payments");
   }
 };

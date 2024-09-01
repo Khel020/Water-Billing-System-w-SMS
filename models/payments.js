@@ -23,6 +23,10 @@ let Payments = new mongoose.Schema({
       require: true,
     },
   },
+  paymentDate: {
+    type: Date,
+    require: [true, "Payment Date Required"],
+  },
   amountDue: {
     type: Number,
     require: true,

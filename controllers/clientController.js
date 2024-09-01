@@ -40,6 +40,7 @@ exports.CreateClient = async (data) => {
       connection_fee: data.connection_fee,
       meter_installer: data.meter_installer,
       zone: data.zone,
+      sequenceNumber: data.seq_num,
     });
 
     const result = await NewClient.save();
@@ -219,9 +220,10 @@ exports.generateAccountNumber = async (data) => {
   // Find the latest consumer in the specified zone
   const latestConsumer = await client
     .findOne({ zone: data.zone })
-    .sort({ sequenceNumber: -1 })
+    .sort({ sequenceNumber: 1 })
     .exec();
 
+  console.log("latest Consumer", latestConsumer);
   let zone = data.zone;
   let c_type;
   let book = 1; // Default starting book
@@ -261,5 +263,10 @@ exports.generateAccountNumber = async (data) => {
   // Combine all parts to form the account number
   const accountNumber = `${zone}${book}-${c_type}-${formattedSequence}`;
 
-  return { accountNumber };
+  const result = {
+    acc_num: accountNumber,
+    seq_num: formattedSequence,
+    book: book,
+  };
+  return { result };
 };
