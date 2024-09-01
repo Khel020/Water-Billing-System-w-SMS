@@ -154,7 +154,7 @@ exports.ConsumersWithBill = async () => {
 
     if (billAccNumbers && billAccNumbers.length > 0) {
       for (const acc_num of billAccNumbers) {
-        const totalBalanceswithDate = await bill
+        const billDetails = await bill
           .aggregate([
             { $match: { acc_num } },
             { $sort: { reading_date: -1 } },
@@ -162,18 +162,15 @@ exports.ConsumersWithBill = async () => {
               $group: {
                 _id: "$acc_num",
                 last_billDate: { $first: "$reading_date" },
-                totalBalance: { $sum: "$totalAmount" },
               },
             },
           ])
           .exec();
 
-        let totalBalance = 0.0;
         let last_billDate = null;
 
-        if (totalBalanceswithDate.length > 0) {
-          const result = totalBalanceswithDate[0];
-          totalBalance = result.totalBalance;
+        if (billDetails.length > 0) {
+          const result = billDetails[0];
           last_billDate = result.last_billDate || null;
         }
 
@@ -181,7 +178,6 @@ exports.ConsumersWithBill = async () => {
           { acc_num },
           {
             last_billDate: last_billDate,
-            totalBalance: parseFloat(totalBalance.toFixed(2)),
           },
           { new: true }
         );

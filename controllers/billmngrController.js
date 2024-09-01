@@ -62,7 +62,6 @@ module.exports.AddBill = async (data) => {
 
   try {
     for (const billData of data) {
-      // Validate if the client exists with the given acc_num and accountName
       const clientExists = await Client.findOne({
         acc_num: billData.acc_num,
         accountName: billData.accountName,
@@ -83,18 +82,17 @@ module.exports.AddBill = async (data) => {
         .sort({ reading_date: -1 })
         .exec();
 
+      // Assigning Amount to previous
       if (latestBill) {
-        // Use the present reading of the latest bill as the previous reading for the new bill
         previousReading = latestBill.present_read || 0;
       } else if (clientExists.initial_read) {
-        // If no previous bill exists but the client has an initial reading, use it
         previousReading = clientExists.initial_read;
       }
 
-      // Calculate consumption by subtracting previous reading from the present reading
+      // Calculate consumption
       const consumption = billData.present_read - previousReading;
 
-      // Ensure consumption is non-negative; otherwise, skip this bill
+      // Ensure consumption is non-negative
       if (consumption < 0) {
         results.push({
           error: `Invalid consumption: Present reading (${billData.present_read}) is less than previous reading (${previousReading}).`,
@@ -116,58 +114,71 @@ module.exports.AddBill = async (data) => {
         continue; // Skip to the next bill
       }
 
-      const dueDate = calculateDueDate(billData.reading_date);
+      const readingDate = new Date(billData.reading_date);
+      const dueDate = calculateDueDate(readingDate);
       const disconnect_Date = calculateDC(dueDate);
-      let totalAmount = consumption * rate.rate;
+      let currentBillAmount = consumption * rate.rate;
       let penalty = 0;
+      let daysPastDue = 0;
 
-      // Calculate penalty if due date has passed
       const currentDate = new Date();
       if (currentDate > dueDate) {
-        penalty = calculatePenalty(totalAmount);
-        totalAmount += penalty;
-      }
-
-      // Consider any advance payment by the client
-      let totalAdvancePayment = clientExists.advancePayment || 0;
-
-      // Deduct advance payment from the total amount
-      if (totalAdvancePayment > 0) {
-        if (totalAdvancePayment >= totalAmount) {
-          totalAdvancePayment -= totalAmount; // Use the advance payment to cover the total amount
-          totalAmount = 0; // No remaining balance to be paid
-        } else {
-          totalAmount -= totalAdvancePayment; // Subtract the advance payment from the total amount
-          totalAdvancePayment = 0; // Advance payment is fully used
-        }
-        // Update the client's advance payment in the database
-        await Client.updateOne(
-          { acc_num: billData.acc_num },
-          { advancePayment: totalAdvancePayment }
+        daysPastDue = Math.floor(
+          (currentDate - dueDate) / (1000 * 60 * 60 * 24)
         );
+        penalty = calculateDailyPenalty(currentBillAmount, daysPastDue);
+        currentBillAmount += penalty;
+        console.log(`Days Past Due: ${daysPastDue}`); // Log the days past due
       }
 
-      // Create a new bill object with the calculated consumption
+      // Find the latest unpaid bill before the current bill date
+      const latestUnpaidBill = await bills
+        .findOne({
+          acc_num: billData.acc_num,
+          reading_date: { $lt: readingDate }, // Only consider bills before the current bill date
+          payment_status: "Unpaid",
+        })
+        .sort({ reading_date: -1 });
+
+      let arrears = 0;
+      if (latestUnpaidBill) {
+        arrears = latestUnpaidBill.totalDue;
+      }
+
+      // Calculate the total due amount
+      const totalDue = currentBillAmount + arrears;
+
+      // Create a new bill object with the calculated values
       const newBill = new bills({
         acc_num: billData.acc_num,
-        reading_date: billData.reading_date,
+        reading_date: readingDate,
         due_date: dueDate,
         accountName: billData.accountName,
-        consumption: consumption, // Set calculated consumption
+        consumption: consumption,
         dc_date: disconnect_Date,
         present_read: billData.present_read,
-        prev_read: previousReading, // Set the previous reading
+        prev_read: previousReading,
         category: billData.category,
-        totalAmount: totalAmount,
+        currentBill: currentBillAmount,
+        arrears: arrears,
         rate: rate.rate,
+        totalDue: totalDue,
         p_charge: penalty,
+        dayPastDueDate: daysPastDue, // Add daysPastDue to the bill
         others: billData.others,
         remarks: billData.remarks,
+        payment_status: "Unpaid",
       });
 
       // Save the bill to the database
       const result = await newBill.save();
       results.push(result); // Store the result for each bill
+
+      // Update the client's total balance
+      await Client.findOneAndUpdate(
+        { acc_num: billData.acc_num },
+        { totalBalance: totalDue }
+      );
     }
 
     return { message: "All bills added successfully", data: results };
@@ -181,15 +192,18 @@ function calculateDueDate(readingDate) {
   dueDate.setDate(dueDate.getDate() + 16);
   return dueDate;
 }
+
 function calculateDC(DUE_DATE) {
   const DC_DATE = new Date(DUE_DATE);
   DC_DATE.setDate(DC_DATE.getDate() + 7);
   return DC_DATE;
 }
-function calculatePenalty(totalAmount) {
-  const penaltyRate = 0.1; // Example: 10% penalty
-  return totalAmount * penaltyRate;
+
+function calculateDailyPenalty(totalAmount, daysPastDue) {
+  const dailyPenaltyRate = 0.01; // Example: 1% daily penalty
+  return totalAmount * dailyPenaltyRate * daysPastDue;
 }
+
 module.exports.GetAllBills = async (data) => {
   return await bills
     .find({})
@@ -202,7 +216,6 @@ module.exports.GetAllBills = async (data) => {
       return { error: "There is an error" };
     });
 };
-
 module.exports.GetBillsByAccNum = async (data) => {
   try {
     const results = await bills.find({ acc_num: data.acc_number });
@@ -230,33 +243,24 @@ module.exports.GetBillsByBillNum = async (data) => {
 };
 module.exports.findBillsPayment = async (data) => {
   try {
-    // Hanapin ang client base sa account number
     const client = await Client.findOne({ acc_num: data.acc_number }).exec();
 
     if (client) {
-      // Retrieve bills associated with the client
       const consumerBills = await bills
         .find({ acc_num: client.acc_num })
         .exec();
 
-      // Calculate total amount and penalty charge
-      const totalBill = consumerBills
-        .reduce((sum, bill) => sum + bill.totalAmount, 0)
-        .toFixed(2);
+      const latestBill = await bills
+        .findOne({ acc_num: client.acc_num })
+        .sort({ reading_date: -1 })
+        .exec();
+
+      const totalAmountDue = latestBill.totalDue;
       const totalPenalty = consumerBills
         .reduce((sum, bill) => sum + (bill.p_charge || 0), 0)
         .toFixed(2);
-
-      console.log("Welcome:", client.accountName);
-      console.log("ADDRESS", client.c_address);
-      console.log("Bills Number:", consumerBills);
-      console.log("Total Bill:", totalBill);
-      console.log("Total Penalty:", totalPenalty);
-
-      // I-return ang bills at kabuuang halaga sa frontend
       return {
-        consumerBills,
-        totalBill,
+        totalAmountDue,
         totalPenalty,
         consumerName: client.accountName,
         address: client.c_address,
@@ -265,7 +269,7 @@ module.exports.findBillsPayment = async (data) => {
       console.log("Client not found.");
       return {
         consumerBills: [],
-        totalBill: 0,
+        totalAmountDue: 0,
         totalPenalty: 0,
         consumerName: null,
         address: null,
@@ -275,7 +279,7 @@ module.exports.findBillsPayment = async (data) => {
     console.error("Error finding bills payment:", error);
     return {
       consumerBills: [],
-      totalBill: 0,
+      totalAmountDue: 0,
       totalPenalty: 0,
       consumerName: null,
       address: null,
@@ -315,9 +319,10 @@ module.exports.AddPayment = async (data) => {
       acc_num: data.acc_num,
       accountName: data.acc_name,
       address: data.address,
-      paid: data.paymentAmount,
-      balance: 0,
+      tendered: data.paymentAmount,
+      amountDue: data.balance,
       change: data.totalChange,
+      balance: 0.0,
     });
 
     // Save the new payment and add the result to the results array

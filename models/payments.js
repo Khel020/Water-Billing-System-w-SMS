@@ -27,7 +27,7 @@ let Payments = new mongoose.Schema({
     type: Number,
     require: true,
   },
-  paid: {
+  tendered: {
     type: Number,
     require: true,
   },
