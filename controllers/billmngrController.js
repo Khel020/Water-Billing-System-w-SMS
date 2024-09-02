@@ -350,7 +350,7 @@ module.exports.AddPayment = async (data) => {
       .updateMany(
         { acc_num: clientToUpdate.acc_num },
         {
-          totalAmount: 0,
+          totalDue: 0,
           payment_status: "Paid",
         }
       )
