@@ -119,3 +119,9 @@ route.get("/GetAllUsers", async (req, res) => {
     });
   }
 });
+route.get("/forActivation", (req, res) => {
+  console.log("Account For Activation");
+  customerctrl.GetforActivation(req.body).then((result) => {
+    res.status(200).json({ success: true, result });
+  });
+});

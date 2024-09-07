@@ -1,6 +1,5 @@
 const client = require("../models/clientModel.js");
 const bill = require("../models/BillsModel.js");
-const fee = require("../models/FeesModel.js");
 const exp = require("express");
 const mng = require("mongoose");
 const env = require("dotenv").config();
@@ -13,7 +12,7 @@ exports.CreateClient = async (data) => {
   try {
     // Check if the account number or account name is already taken
     const existingClient = await client.findOne({
-      $or: [{ acc_num: data.acc_num }, { accountName: data.accountName }],
+      $or: [{ acc_num: data.accountNumber }, { accountName: data.accountName }],
     });
 
     if (existingClient) {
@@ -23,7 +22,12 @@ exports.CreateClient = async (data) => {
           "Account number or account name is already taken. Please use a unique value.",
       };
     }
-    // Create a new client object
+
+    // Calculate total balance from installation and connection fees
+    const totalBalance =
+      parseFloat(data.installation_fee) + parseFloat(data.connection_fee);
+
+    // Create a new client object with total balance included
     let NewClient = new client({
       acc_num: data.accountNumber,
       accountName: data.accountName,
@@ -36,26 +40,17 @@ exports.CreateClient = async (data) => {
       client_type: data.client_type,
       install_date: data.install_date,
       activation_date: data.activationDate,
-      installation_fee: data.installation_fee,
+      install_fee: data.installation_fee,
       connection_fee: data.connection_fee,
       meter_installer: data.meter_installer,
       zone: data.zone,
       sequenceNumber: data.seq_num,
+      totalBalance: totalBalance, // Add total balance here
     });
 
     const result = await NewClient.save();
-    const clientFees = new fee({
-      acc_num: data.acc_num,
-      accountName: data.accountName,
-      installation_fee: data.installation_fee,
-      connection_fee: data.connection_fee,
-    });
-    const saveFees = await clientFees.save();
-    return {
-      message: "Client and fees successfully created",
-      client: result,
-      fees: saveFees,
-    };
+
+    return { result: result, message: "Client Successfully Created" };
   } catch (err) {
     // Log and return error message
     console.error(err);
@@ -269,4 +264,15 @@ exports.generateAccountNumber = async (data) => {
     book: book,
   };
   return { result };
+};
+exports.GetforActivation = async () => {
+  try {
+    // Fetch the accounts with activationStatus "pending"
+    const result = await client.find({ activationStatus: "pending" });
+    return result;
+  } catch (error) {
+    // Log the error and throw it to be handled by the route
+    console.error("Error fetching accounts for activation:", error);
+    throw new Error("Error fetching accounts for activation");
+  }
 };

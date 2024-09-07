@@ -128,10 +128,9 @@ module.exports.AddBill = async (data) => {
         );
         penalty = calculateDailyPenalty(currentBillAmount, daysPastDue);
         currentBillAmount += penalty;
-        console.log(`Days Past Due: ${daysPastDue}`); // Log the days past due
       }
 
-      // Find the latest unpaid bill before the current bill date
+      // Check if there are any unpaid bills before the current bill date
       const latestUnpaidBill = await bills
         .findOne({
           acc_num: billData.acc_num,
@@ -145,8 +144,29 @@ module.exports.AddBill = async (data) => {
         arrears = latestUnpaidBill.totalDue;
       }
 
+      // Check if client has installation and connection fees
+      let additionalFees = 0;
+      if (clientExists.totalBalance > 0 && !latestBill) {
+        // If the client has fees but no previous bill, add these fees to the totalDue
+        additionalFees = clientExists.totalBalance;
+      }
+
       // Calculate the total due amount
-      const totalDue = currentBillAmount + arrears;
+      const totalDue = currentBillAmount + arrears + additionalFees;
+
+      // Handle advance payment
+      let remainingAdvancePayment = clientExists.advancePayment || 0;
+      let newTotalBalance = totalDue;
+
+      if (remainingAdvancePayment > 0) {
+        if (remainingAdvancePayment >= totalDue) {
+          remainingAdvancePayment -= totalDue;
+          newTotalBalance = 0; // Entire bill is covered by advance payment
+        } else {
+          newTotalBalance = totalDue - remainingAdvancePayment;
+          remainingAdvancePayment = 0; // Advance payment is fully used
+        }
+      }
 
       // Create a new bill object with the calculated values
       const newBill = new bills({
@@ -162,22 +182,25 @@ module.exports.AddBill = async (data) => {
         currentBill: currentBillAmount,
         arrears: arrears,
         rate: rate.rate,
-        totalDue: totalDue,
+        totalDue: newTotalBalance,
         p_charge: penalty,
-        dayPastDueDate: daysPastDue, // Add daysPastDue to the bill
+        dayPastDueDate: daysPastDue,
         others: billData.others,
         remarks: billData.remarks,
-        payment_status: "Unpaid",
+        payment_status: newTotalBalance === 0 ? "Paid" : "Unpaid",
       });
 
       // Save the bill to the database
       const result = await newBill.save();
       results.push(result); // Store the result for each bill
 
-      // Update the client's total balance
+      // Update the client's total balance and remaining advance payment
       await Client.findOneAndUpdate(
         { acc_num: billData.acc_num },
-        { totalBalance: totalDue }
+        {
+          totalBalance: newTotalBalance,
+          advancePayment: remainingAdvancePayment,
+        }
       );
     }
 
@@ -250,16 +273,31 @@ module.exports.findBillsPayment = async (data) => {
         .find({ acc_num: client.acc_num })
         .exec();
 
+      // If no bills exist, return the totalBalance from the client
+      if (consumerBills.length === 0) {
+        return {
+          totalAmountDue: client.totalBalance,
+          totalPenalty: 0,
+          consumerName: client.accountName,
+          address: client.c_address,
+        };
+      }
+
       const latestBill = await bills
         .findOne({ acc_num: client.acc_num })
         .sort({ reading_date: -1 })
         .exec();
 
-      const totalAmountDue = latestBill.totalDue;
-      const totalPenalty = consumerBills
-        .reduce((sum, bill) => sum + (bill.p_charge || 0), 0)
-        .toFixed(2);
+      // Calculate totalAmountDue based on the latest bill
+      let billAmount = latestBill.currentBill;
+      let arrears = latestBill.arrears;
+      let totalAmountDue = latestBill.totalDue;
+      let totalPenalty = latestBill.p_charge;
+      // Calculate total penalties from all unpaid bills
+
       return {
+        arrears,
+        billAmount,
         totalAmountDue,
         totalPenalty,
         consumerName: client.accountName,
@@ -286,6 +324,7 @@ module.exports.findBillsPayment = async (data) => {
     };
   }
 };
+
 module.exports.calculateChange = async (data) => {
   try {
     // Validate input data

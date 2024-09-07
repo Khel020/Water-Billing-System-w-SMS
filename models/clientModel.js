@@ -63,10 +63,25 @@ let clientSchema = new mongoose.Schema({
     trim: true,
     required: [true, "Required"],
   },
+  install_fee: {
+    type: Number,
+    trim: true,
+    required: [true, "Required"],
+  },
+  connection_fee: {
+    type: Number,
+    trim: true,
+    required: [true, "Required"],
+  },
   activation_date: {
     type: Date,
     trim: true,
     required: [true, "Required"],
+  },
+  activationStatus: {
+    type: String,
+    enum: ["pending", "activated"],
+    default: "pending",
   },
   meter_installer: {
     type: String,

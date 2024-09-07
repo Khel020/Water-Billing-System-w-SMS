@@ -22,6 +22,10 @@ exports.CreateUser = async (data) => {
       ],
     });
 
+    if (!checkInClient) {
+      return { success: false, message: "User is not a consumer" };
+    }
+
     // Check if the user already exists in the user collection
     const account = await user.findOne({
       $or: [
@@ -34,11 +38,6 @@ exports.CreateUser = async (data) => {
 
     console.log("Account found in users: ", account);
     console.log("Account Found in Consumers", checkInClient);
-
-    // If user is not a consumer, return an error
-    if (!checkInClient) {
-      return { success: false, message: "User is not a consumer" };
-    }
 
     // If account exists, check for conflicts
     if (account) {
