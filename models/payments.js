@@ -1,6 +1,10 @@
 const mongoose = require("mongoose");
 const AutoIncrement = require("mongoose-sequence")(mongoose);
 let Payments = new mongoose.Schema({
+  billNo: {
+    type: Number, // Make sure this matches your increment field
+    unique: true, // Ensures OR_NUM is unique
+  },
   acc_num: {
     type: String,
     require: true,
@@ -49,6 +53,10 @@ let Payments = new mongoose.Schema({
   arrears: {
     type: String,
     require: true,
+  },
+  OR_NUM: {
+    type: Number, // Make sure this matches your increment field
+    unique: true, // Ensures OR_NUM is unique
   },
 });
 Payments.plugin(AutoIncrement, { inc_field: "OR_NUM" });

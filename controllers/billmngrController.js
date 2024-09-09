@@ -289,6 +289,7 @@ module.exports.findBillsPayment = async (data) => {
         .exec();
 
       // Calculate totalAmountDue based on the latest bill
+      let billNo = latestBill.billNumber;
       let billAmount = latestBill.currentBill;
       let arrears = latestBill.arrears;
       let totalAmountDue = latestBill.totalDue;
@@ -302,6 +303,7 @@ module.exports.findBillsPayment = async (data) => {
         totalPenalty,
         consumerName: client.accountName,
         address: client.c_address,
+        billNo: billNo,
       };
     } else {
       console.log("Client not found.");
@@ -355,6 +357,7 @@ module.exports.AddPayment = async (data) => {
   const results = [];
   try {
     const newPayment = new Payment({
+      billNo: data.billNo,
       acc_num: data.acc_num,
       accountName: data.acc_name,
       address: data.address,
@@ -367,7 +370,9 @@ module.exports.AddPayment = async (data) => {
 
     // Save the new payment and add the result to the results array
     const paymentResult = await newPayment.save();
-    results.push(paymentResult);
+
+    results.push({ paymentResult, OR_NUM: paymentResult.OR_NUM });
+    console.log("The result is", results);
 
     const clientToUpdate = await Client.findOneAndUpdate(
       { acc_num: data.acc_num },

@@ -1,6 +1,7 @@
 const admin = require("../models/adminModel.js");
 const users = require("../models/usersModel.js");
 const biller = require("../models/BillMngr.js");
+const payments = require("../models/payments.js");
 const exp = require("express");
 const mng = require("mongoose");
 const env = require("dotenv").config();
@@ -185,6 +186,23 @@ exports.updateAccountStatus = async (req, res) => {
     return {
       success: false,
       message: "Internal server error",
+    };
+  }
+};
+exports.GetAllPayments = async () => {
+  try {
+    const result = await payments.find({});
+    console.log(result);
+    return {
+      success: true,
+      message: "Payments fetched successfully",
+      data: result,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Failed to fetch payments",
+      error: error.message,
     };
   }
 };

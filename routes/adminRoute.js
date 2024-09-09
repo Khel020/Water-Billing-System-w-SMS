@@ -103,7 +103,7 @@ route.post("/generate_accNum", (req, res) => {
     res.send(result);
   });
 });
-// Corrected route setup with async/await
+
 route.get("/GetAllUsers", async (req, res) => {
   try {
     console.log("Getting All Users");
@@ -123,5 +123,12 @@ route.get("/forActivation", (req, res) => {
   console.log("Account For Activation");
   customerctrl.GetforActivation(req.body).then((result) => {
     res.status(200).json({ success: true, result });
+  });
+});
+route.get("/getAllPayments", (req, res) => {
+  console.log("Payments");
+  controller.GetAllPayments(req.body).then((result) => {
+    console.log("result in route", result);
+    res.send(result);
   });
 });

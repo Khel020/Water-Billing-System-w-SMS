@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 const AutoIncrement = require("mongoose-sequence")(mongoose);
 
 let billSchema = new mongoose.Schema({
+  billNumber: {
+    type: Number,
+    unique: true,
+  },
   accountName: {
     type: String,
     required: [true, "Required!"],
@@ -82,6 +86,5 @@ let billSchema = new mongoose.Schema({
 });
 
 billSchema.plugin(AutoIncrement, { inc_field: "billNumber" });
-
 const BILL = mongoose.model("bills", billSchema);
 module.exports = BILL;
