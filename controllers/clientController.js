@@ -215,7 +215,7 @@ exports.generateAccountNumber = async (data) => {
   // Find the latest consumer in the specified zone
   const latestConsumer = await client
     .findOne({ zone: data.zone })
-    .sort({ sequenceNumber: 1 })
+    .sort({ sequenceNumber: -1 })
     .exec();
 
   console.log("latest Consumer", latestConsumer);
@@ -238,7 +238,7 @@ exports.generateAccountNumber = async (data) => {
     default:
       throw new Error("Invalid client type");
   }
-
+  console.log("Latest Consumer", latestConsumer);
   if (latestConsumer) {
     // Increment the sequence number
     sequenceNumber = latestConsumer.sequenceNumber + 1;

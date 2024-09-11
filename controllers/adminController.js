@@ -89,10 +89,10 @@ exports.UpdateAdminByID = async (data) => {
 };
 exports.GetAllUsers = async (req, res) => {
   try {
-    // Fetch data from each collection
-    const usersData = await users.find({}).exec();
-    const billerData = await biller.find({}).exec();
-    const adminData = await admin.find({}).exec();
+    // Fetch data from each collection, excluding archived accounts
+    const usersData = await users.find({ isArchive: { $ne: true } }).exec();
+    const billerData = await biller.find({ isArchive: { $ne: true } }).exec();
+    const adminData = await admin.find({ isArchive: { $ne: true } }).exec();
 
     // Add a role identifier to each record for easy differentiation
     const usersWithRole = usersData.map((user) => ({
@@ -121,11 +121,7 @@ exports.GetAllUsers = async (req, res) => {
     };
 
     // Send the response object as JSON
-    res.status(200).json({
-      success: true,
-      message: "Users fetched successfully",
-      data: allUsers,
-    });
+    res.status(200).json(responseObject);
   } catch (error) {
     // Error handling with a structured error response
     res.status(500).json({
@@ -139,6 +135,7 @@ exports.GetAllUsers = async (req, res) => {
     });
   }
 };
+
 exports.updateAccountStatus = async (req, res) => {
   try {
     const accountID = req._id;
@@ -202,6 +199,63 @@ exports.GetAllPayments = async () => {
     return {
       success: false,
       message: "Failed to fetch payments",
+      error: error.message,
+    };
+  }
+};
+exports.ArchiveAccount = async (data) => {
+  const { status, usertype, _id: id } = data;
+
+  try {
+    let archivedAccount;
+
+    switch (usertype) {
+      case "admin":
+        archivedAccount = await admin.findByIdAndUpdate(
+          id,
+          { isArchive: true, status: "deactivated" },
+          { new: true }
+        );
+        console.log(`Archiving admin account with ID: ${id}`);
+        break;
+
+      case "users":
+        archivedAccount = await users.findByIdAndUpdate(
+          id,
+          { isArchive: true, status: "deactivated" },
+          { new: true }
+        );
+        console.log(`Archiving user account with ID: ${id}`);
+        break;
+
+      case "billermngr":
+        archivedAccount = await biller.findByIdAndUpdate(
+          id,
+          { isArchive: true, status: "deactivated" },
+          { new: true }
+        );
+        console.log(`Archiving biller manager account with ID: ${id}`);
+        break;
+
+      default:
+        console.log(`Unknown usertype: ${usertype}`);
+        return { success: false, message: "Invalid usertype" };
+    }
+
+    if (archivedAccount) {
+      return {
+        success: true,
+        message: "Account archived successfully",
+        data: archivedAccount,
+      };
+    } else {
+      return { success: false, message: "Account not found" };
+    }
+  } catch (error) {
+    console.error(`Error archiving account with ID: ${id}`, error);
+    return {
+      success: false,
+      message: "Internal server error",
       error: error.message,
     };
   }

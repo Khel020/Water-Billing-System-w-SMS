@@ -39,13 +39,22 @@ route.get("/getBillbyAccNum/:acc_number", (req, res) => {
     res.send(result);
   });
 });
-route.get("/getBillbyBillNum/:billNumber", (req, res) => {
-  console.log("Your Request Body:", req.params);
-  biller.GetBillsByBillNum(req.params).then((result) => {
-    console.log(result);
-    res.send(result);
-  });
+route.get("/getBillbyBillNum", (req, res) => {
+  const billNumber = req.query.billNumber; // Extract billNumber from query parameters
+  console.log("Received Bill Number:", billNumber);
+
+  biller
+    .GetBillsByBillNum({ billNumber })
+    .then((result) => {
+      console.log(result);
+      res.send(result);
+    })
+    .catch((error) => {
+      console.error("Error fetching bill:", error);
+      res.status(500).send({ error: "Failed to fetch bill" });
+    });
 });
+
 route.get("/findBillPay/:acc_number", (req, res) => {
   console.log("finding bill for payment");
   biller.findBillsPayment(req.params).then((response) => {
@@ -85,5 +94,14 @@ route.get("/getPayments/:acc_num", async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: error.message }); // Respond with error message if something goes wrong
+  }
+});
+route.get("/billStatus", async (req, res) => {
+  try {
+    const stats = await biller.getBillStatus();
+    res.json(stats);
+  } catch (error) {
+    console.error("Error fetching client statistics:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });

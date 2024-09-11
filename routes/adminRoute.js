@@ -107,8 +107,6 @@ route.post("/generate_accNum", (req, res) => {
 route.get("/GetAllUsers", async (req, res) => {
   try {
     console.log("Getting All Users");
-
-    // Call the GetAllUsers function and handle it within this block
     await controller.GetAllUsers(req, res); // Directly pass req and res
   } catch (error) {
     // Handle any unexpected errors
@@ -129,6 +127,12 @@ route.get("/getAllPayments", (req, res) => {
   console.log("Payments");
   controller.GetAllPayments(req.body).then((result) => {
     console.log("result in route", result);
+    res.send(result);
+  });
+});
+route.put("/archiveAccount", (req, res) => {
+  console.log("Account for Archive", req.body);
+  controller.ArchiveAccount(req.body).then((result) => {
     res.send(result);
   });
 });

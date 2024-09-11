@@ -51,6 +51,10 @@ let billmngrSchema = new mongoose.Schema({
     enum: ["active", "deactivated"],
     default: "active",
   },
+  isArchive: {
+    type: Boolean,
+    default: false,
+  },
 });
 const BILLMNGR = mongoose.model("billmanagers", billmngrSchema);
 module.exports = BILLMNGR;

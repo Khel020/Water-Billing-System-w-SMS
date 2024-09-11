@@ -60,6 +60,10 @@ let userSchema = new mongoose.Schema({
     enum: ["active", "deactivated"],
     default: "active",
   },
+  isArchive: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const USERS = mongoose.model("users", userSchema);

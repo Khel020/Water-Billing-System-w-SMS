@@ -51,6 +51,10 @@ let adminSchema = new mongoose.Schema({
     enum: ["active", "deactivated"],
     default: "active",
   },
+  isArchive: {
+    type: Boolean,
+    default: false,
+  },
 });
 const ADMIN = mongoose.model("admin", adminSchema);
 module.exports = ADMIN;

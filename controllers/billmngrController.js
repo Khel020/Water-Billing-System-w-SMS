@@ -424,3 +424,17 @@ module.exports.GetPaymentsAccNum = async (acc_num) => {
     throw new Error("Error fetching payments");
   }
 };
+module.exports.getBillStatus = async () => {
+  try {
+    const totalBills = await bills.countDocuments();
+    const unpaidBills = await bills.countDocuments({
+      payment_status: "Unpaid",
+    });
+    const paidBills = await bills.countDocuments({ payment_status: "Paid" });
+
+    return { totalBills, unpaidBills, paidBills };
+  } catch (error) {
+    console.error("Error fetching bills status:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
