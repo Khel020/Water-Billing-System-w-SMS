@@ -32,7 +32,7 @@ route.get("/customers", (req, res) => {
     res.send(result);
   });
 });
-route.post("/addRates", auth.AdminOnly, (req, res) => {
+route.post("/addRates", (req, res) => {
   console.log("Adding Rates");
   console.log(req.body);
   ratectrl.addRate(req.body).then((result) => {
@@ -134,5 +134,12 @@ route.put("/archiveAccount", (req, res) => {
   console.log("Account for Archive", req.body);
   controller.ArchiveAccount(req.body).then((result) => {
     res.send(result);
+  });
+});
+route.get("/billSummary", (req, res) => {
+  console.log("Getting Bill Summary");
+  controller.getBillSummary(req.body).then((result) => {
+    console.log("Result is ", result);
+    res.json(result);
   });
 });

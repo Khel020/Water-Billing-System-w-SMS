@@ -2,6 +2,7 @@ const admin = require("../models/adminModel.js");
 const users = require("../models/usersModel.js");
 const biller = require("../models/BillMngr.js");
 const payments = require("../models/payments.js");
+const bills = require("../models/BillsModel.js");
 const exp = require("express");
 const mng = require("mongoose");
 const env = require("dotenv").config();
@@ -135,7 +136,6 @@ exports.GetAllUsers = async (req, res) => {
     });
   }
 };
-
 exports.updateAccountStatus = async (req, res) => {
   try {
     const accountID = req._id;
@@ -258,5 +258,56 @@ exports.ArchiveAccount = async (data) => {
       message: "Internal server error",
       error: error.message,
     };
+  }
+};
+exports.getBillSummary = async (year) => {
+  try {
+    // Parse the year from the input, assuming it is passed as a string
+    const filterByYear = parseInt(year.year, 10);
+    console.log("Filtering bills for year:", filterByYear);
+
+    // Perform the aggregation
+    const summary = await bills.aggregate([
+      {
+        $match: {
+          $expr: { $eq: [{ $year: "$reading_date" }, filterByYear] }, // Filter by year
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$reading_date" }, // Group by year
+            month: { $month: "$reading_date" }, // Group by month
+          },
+          totalBills: { $sum: 1 }, // Count total bills
+          totalAmount: { $sum: "$currentBill" }, // Sum of all totalDue amounts
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          month: {
+            $concat: [
+              { $toString: "$_id.month" }, // Month number
+              "-",
+              { $toString: "$_id.year" }, // Year
+            ],
+          },
+          totalBills: 1,
+          totalAmount: 1,
+        },
+      },
+      {
+        $sort: { month: 1 }, // Sort by month
+      },
+    ]);
+
+    // Debug: Log the aggregation pipeline stages
+    console.log("Aggregation Pipeline Result:", summary);
+
+    return summary;
+  } catch (error) {
+    console.error("Error fetching monthly summary:", error);
+    return []; // Return an empty array in case of error
   }
 };

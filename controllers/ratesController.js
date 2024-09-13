@@ -25,24 +25,28 @@ exports.updateRate = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
 exports.addRate = async (data) => {
   try {
-    const category = data.category;
-    const minConsumption = data.minConsumption;
-    const maxConsumption = data.maxConsumption;
-    const rate = data.rate;
+    const { category, size, minimumCharge, commodityRates } = data;
+
+    // Ensure the commodityRates array is properly formatted
+    const formattedCommodityRates = commodityRates.map((rate) => ({
+      rangeStart: rate.rangeStart,
+      rangeEnd: rate.rangeEnd,
+      rate: parseFloat(rate.rate).toFixed(2),
+    }));
 
     const newRate = new rates({
       category,
-      minConsumption,
-      maxConsumption,
-      rate,
+      size,
+      minimumCharge,
+      commodityRates: formattedCommodityRates,
     });
 
     await newRate.save();
     return { message: "Rate successfully added" };
   } catch (error) {
+    console.error(error); // Log the error for debugging
     return { message: "Adding Rate Failed" };
   }
 };

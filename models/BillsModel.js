@@ -61,7 +61,7 @@ let billSchema = new mongoose.Schema({
   },
   payment_status: {
     type: String,
-    enum: ["Unpaid", "Paid"],
+    enum: ["Unpaid", "Paid", "Partial"],
     required: [true, "Required!"],
     default: "Unpaid",
   },
@@ -76,7 +76,6 @@ let billSchema = new mongoose.Schema({
   },
   rate: {
     type: Number,
-    required: true,
   },
   category: {
     type: String,
