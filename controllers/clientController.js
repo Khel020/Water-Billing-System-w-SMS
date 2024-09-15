@@ -23,9 +23,7 @@ exports.CreateClient = async (data) => {
       };
     }
 
-    // Calculate total balance from installation and connection fees
-    const totalBalance =
-      parseFloat(data.installation_fee) + parseFloat(data.connection_fee);
+    const totalBalance = parseFloat(data.installation_fee);
 
     // Create a new client object with total balance included
     let NewClient = new client({
@@ -33,15 +31,14 @@ exports.CreateClient = async (data) => {
       accountName: data.accountName,
       meter_num: data.meter_num,
       pipe_size: data.pipe_size,
-      status: data.status,
-      brand_num: data.brand_num,
+      meter_brand: data.brand_num,
+      contact: data.contact,
       initial_read: data.initial_read,
       c_address: data.address,
       client_type: data.client_type,
       install_date: data.install_date,
       activation_date: data.activationDate,
       install_fee: data.installation_fee,
-      connection_fee: data.connection_fee,
       meter_installer: data.meter_installer,
       zone: data.zone,
       sequenceNumber: data.seq_num,
@@ -81,11 +78,7 @@ exports.UpdateClientByAccNum = async (data) => {
     status: data.status,
     client_type: data.client_type,
     email: data.email,
-    c_address: {
-      house_num: data.c_address.house_num,
-      purok: data.c_address.purok,
-      brgy: data.c_address.brgy,
-    },
+    c_address: data.address,
   };
   try {
     // Ensure that the `updates` object contains valid fields and values
@@ -268,11 +261,24 @@ exports.generateAccountNumber = async (data) => {
 exports.GetforActivation = async () => {
   try {
     // Fetch the accounts with activationStatus "pending"
-    const result = await client.find({ activationStatus: "pending" });
+    const result = await client.find({ status: "Pending" });
     return result;
   } catch (error) {
     // Log the error and throw it to be handled by the route
     console.error("Error fetching accounts for activation:", error);
     throw new Error("Error fetching accounts for activation");
+  }
+};
+exports.UpdatePending = async (data) => {
+  try {
+    const result = await client.findOneAndUpdate(
+      { acc_num: data.acc_num },
+      { status: data.status },
+      { new: true }
+    );
+    return result; // Return the updated result if needed
+  } catch (error) {
+    console.error("Error updating status:", error);
+    throw error; // Optionally, rethrow the error for further handling
   }
 };

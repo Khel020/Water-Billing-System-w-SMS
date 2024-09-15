@@ -179,7 +179,7 @@ module.exports.AddBill = async (data) => {
           reading_date: { $lt: readingDate },
           payment_status: { $in: ["Unpaid", "Partial"] },
         })
-        .sort({ reading_date: -1 });
+        .sort({ reading_date: 1 });
 
       let arrears = 0;
       if (latestUnpaidBill) {
@@ -209,6 +209,13 @@ module.exports.AddBill = async (data) => {
         }
       }
 
+      const unpaidBills = await bills.countDocuments({
+        acc_num: String(billData.acc_num), // Ensures it's treated as a string
+        payment_status: "Unpaid",
+      });
+
+      console.log("UNPAID BILLS", unpaidBills);
+
       // Create and save the new bill
       const newBill = new bills({
         acc_num: billData.acc_num,
@@ -233,7 +240,6 @@ module.exports.AddBill = async (data) => {
       const result = await newBill.save();
       results.push(result);
 
-      // Update client balance and advance payment
       await Client.findOneAndUpdate(
         { acc_num: billData.acc_num },
         {
@@ -394,97 +400,90 @@ module.exports.calculateChange = async (data) => {
 
 module.exports.AddPayment = async (data) => {
   const results = [];
+  let remainingPayment = data.paymentAmount; // Initialize with the full payment amount
+  let paymentRecord = null; // To store the payment record
+
   try {
-    // Check if the consumer has any bills
-    const latestBill = await bills
-      .findOne({ acc_num: data.acc_num })
-      .sort({ reading_date: -1 })
+    // Find all unpaid bills for the consumer, ordered by oldest to newest
+    const unpaidBills = await bills
+      .find({ acc_num: data.acc_num, payment_status: { $ne: "Paid" } })
+      .sort({ reading_date: 1 }) // Sort by oldest first
       .exec();
 
-    if (latestBill) {
-      // Calculate the remaining balance if a bill exists
-      const remainingBalance = (
-        latestBill.totalDue - data.paymentAmount
-      ).toFixed(2);
-      console.log("Remaining Balance", remainingBalance);
-
-      const newPayment = new Payment({
-        billNo: data.billNo,
+    if (unpaidBills.length > 0) {
+      // Create a single payment record
+      paymentRecord = new Payment({
         acc_num: data.acc_num,
         accountName: data.acc_name,
         address: data.address,
         paymentDate: data.p_date,
         tendered: data.paymentAmount,
-        amountDue: latestBill.totalDue,
-        change: remainingBalance < 0 ? Math.abs(remainingBalance) : 0,
-        balance: remainingBalance > 0 ? remainingBalance : 0,
+        amountDue: 0, // This will be updated to the total amount due
+        change: 0, // To be calculated
+        balance: 0, // To be calculated
       });
 
-      // Save the new payment and add the result to the results array
-      const paymentResult = await newPayment.save();
-      results.push({ paymentResult, OR_NUM: paymentResult.OR_NUM });
+      let totalDue = 0; // Total amount due for all bills paid
+      let totalChange = 0; // Total change calculated
+      let totalBalance = 0; // Total remaining balance
 
-      // If there's a remaining balance, update the bill with the new total due
-      if (remainingBalance > 0) {
-        await bills
-          .updateOne(
-            { billNumber: data.billNo },
-            {
-              amountPaid: data.paymentAmount,
-              totalDue: remainingBalance,
-              payment_status: "Partial",
-            }
-          )
-          .exec();
+      for (const bill of unpaidBills) {
+        if (remainingPayment <= 0) break; // Stop if there's no payment left to apply
 
-        await Client.findOneAndUpdate(
-          { acc_num: data.acc_num },
+        const billDue = bill.currentBill; // Current bill amount
+        const paymentApplied = Math.min(remainingPayment, billDue); // Apply either the remaining payment or the billDue
+        const remainingBalance = billDue - paymentApplied; // Calculate the remaining balance
+
+        // Update the bill with the payment information
+        await bills.updateOne(
+          { _id: bill._id }, // Use _id for precise updates
           {
-            totalBalance: remainingBalance,
-            advancePayment: data.advTotalAmount,
-          },
-          { new: true }
-        ).exec();
-      } else {
-        // If the bill is fully paid, mark it as paid
-        await bills
-          .updateOne(
-            { billNumber: data.billNo },
-            {
-              amountPaid: latestBill.currentBill,
-              totalDue: 0,
-              payment_status: "Paid",
-            }
-          )
-          .exec();
+            amountPaid: paymentApplied,
+            totalDue: remainingBalance,
+            payment_status: remainingBalance > 0 ? "Partial" : "Paid",
+          }
+        );
 
-        // Update client's total balance
-        await Client.findOneAndUpdate(
-          { acc_num: data.acc_num },
-          {
-            totalBalance: 0,
-            advancePayment: data.advTotalAmount,
-          },
-          { new: true }
-        ).exec();
+        remainingPayment -= paymentApplied;
+        totalDue += paymentApplied; // Accumulate the total due amount
+        totalBalance += remainingBalance; // Accumulate the total remaining balance
       }
+
+      // Finalize the payment record
+      paymentRecord.amountDue = totalDue;
+      paymentRecord.change = remainingPayment > 0 ? remainingPayment : 0;
+      paymentRecord.balance = parseFloat(totalBalance.toFixed(2)); // Ensure balance is a number with 2 decimal places
+
+      // Save the payment record
+      const paymentResult = await paymentRecord.save();
+      results.push({ paymentResult, OR_NUM: paymentResult.OR_NUM });
+
+      // Update the client's total balance and advance payment (if applicable)
+      await Client.findOneAndUpdate(
+        { acc_num: data.acc_num },
+        {
+          totalBalance: totalBalance,
+          advancePayment: data.advTotalAmount,
+        },
+        { new: true }
+      );
     } else {
-      // If no bill exists, assume it's an initial fee payment
+      // If no bills exist, assume this is an installation fee payment
       const newPayment = new Payment({
         acc_num: data.acc_num,
         accountName: data.acc_name,
         address: data.address,
         paymentDate: data.p_date,
         tendered: data.paymentAmount,
-        amountDue: data.paymentAmount, // Assume full payment for initial fee
+        amountDue: data.paymentAmount, // Assume full payment for the installation fee
         change: 0, // No change expected
-        balance: 0.0, // No balance remaining
+        balance: 0.0, // No remaining balance
       });
 
       const paymentResult = await newPayment.save();
       results.push({ paymentResult, OR_NUM: paymentResult.OR_NUM });
 
-      // Update client's balance if they have an advance payment
+      // Update the client's balance to 0 since there are no bills
       await Client.findOneAndUpdate(
         { acc_num: data.acc_num },
         {
@@ -492,7 +491,7 @@ module.exports.AddPayment = async (data) => {
           advancePayment: data.advTotalAmount,
         },
         { new: true }
-      ).exec();
+      );
     }
 
     return {
@@ -501,7 +500,7 @@ module.exports.AddPayment = async (data) => {
       data: results,
     };
   } catch (error) {
-    // Log the error for debugging purposes and return a failure response
+    // Handle any errors that occur during the process
     console.error("Error processing payment:", error);
     return {
       success: false,

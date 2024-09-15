@@ -20,20 +20,12 @@ let clientSchema = new mongoose.Schema({
     default: 1,
   }, // Starts with Book 1
   c_address: {
-    house_num: {
-      type: Number,
-    },
-    purok: {
-      type: String,
-      trim: true,
-    },
-    brgy: {
-      type: String,
-      trim: true,
-    },
+    type: String,
+    require: true,
   },
-  brand_num: {
-    type: Number,
+  meter_brand: {
+    type: String,
+    require: true,
   },
   meter_num: {
     type: Number,
@@ -48,7 +40,12 @@ let clientSchema = new mongoose.Schema({
   status: {
     type: String,
     trim: true,
-    required: [true, "Required!"],
+    enum: ["Active", "Inactive", "Pending"],
+    default: "Pending",
+  },
+  contact: {
+    type: Number,
+    required: true,
   },
   client_type: {
     type: String,
@@ -68,20 +65,10 @@ let clientSchema = new mongoose.Schema({
     trim: true,
     required: [true, "Required"],
   },
-  connection_fee: {
-    type: Number,
-    trim: true,
-    required: [true, "Required"],
-  },
   activation_date: {
     type: Date,
     trim: true,
     required: [true, "Required"],
-  },
-  activationStatus: {
-    type: String,
-    enum: ["pending", "activated"],
-    default: "pending",
   },
   meter_installer: {
     type: String,

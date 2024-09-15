@@ -143,3 +143,15 @@ route.get("/billSummary", (req, res) => {
     res.json(result);
   });
 });
+route.post("/update_pendingStatus", async (req, res) => {
+  try {
+    console.log("Updating pending status");
+    const result = await customerctrl.UpdatePending(req.body);
+    res.status(200).json({ message: "Status updated successfully", result });
+  } catch (error) {
+    console.error("Error updating status:", error);
+    res
+      .status(500)
+      .json({ message: "Error updating status", error: error.message });
+  }
+});
