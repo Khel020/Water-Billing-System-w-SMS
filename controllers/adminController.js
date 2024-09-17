@@ -3,6 +3,7 @@ const users = require("../models/usersModel.js");
 const biller = require("../models/BillMngr.js");
 const payments = require("../models/payments.js");
 const bills = require("../models/BillsModel.js");
+const Rates = require("../models/ratesModel.js");
 const exp = require("express");
 const mng = require("mongoose");
 const env = require("dotenv").config();
@@ -309,5 +310,50 @@ exports.getBillSummary = async (year) => {
   } catch (error) {
     console.error("Error fetching monthly summary:", error);
     return []; // Return an empty array in case of error
+  }
+};
+exports.getAllRates = async () => {
+  try {
+    const rates = await Rates.find();
+    console.log("RATES", rates);
+    return {
+      success: true,
+      data: rates,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Server Error",
+      error: error.message,
+    };
+  }
+};
+exports.updateRate = async (req, res) => {
+  const { id } = req.params;
+  const { category, size, minimumCharge, commodityRates } = req.body;
+
+  try {
+    // Find and update the rate document
+    const updatedRate = await Rates.findByIdAndUpdate(
+      id,
+      {
+        category,
+        size,
+        minimumCharge,
+        commodityRates,
+      },
+      { new: true, runValidators: true } // Return the updated document and validate
+    );
+
+    if (!updatedRate) {
+      return res.status(404).json({ message: "Rate not found" });
+    }
+
+    res
+      .status(200)
+      .json({ message: "Rate updated successfully", data: updatedRate });
+  } catch (error) {
+    console.error("Error updating rate:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };

@@ -271,11 +271,14 @@ exports.GetforActivation = async () => {
 };
 exports.UpdatePending = async (data) => {
   try {
+    console.log("For Update", data);
+    console.log("Updating");
     const result = await client.findOneAndUpdate(
       { acc_num: data.acc_num },
       { status: data.status },
       { new: true }
     );
+    console.log("RESULT", result);
     return result; // Return the updated result if needed
   } catch (error) {
     console.error("Error updating status:", error);

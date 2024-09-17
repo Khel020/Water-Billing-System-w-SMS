@@ -13,12 +13,12 @@ let clientSchema = new mongoose.Schema({
   zone: {
     type: String,
     required: true,
-  }, // e.g., '01' for Zone 1
+  },
   book: {
     type: Number,
     required: true,
     default: 1,
-  }, // Starts with Book 1
+  },
   c_address: {
     type: String,
     require: true,
@@ -42,6 +42,11 @@ let clientSchema = new mongoose.Schema({
     trim: true,
     enum: ["Active", "Inactive", "Pending"],
     default: "Pending",
+  },
+  disconnection_status: {
+    type: String,
+    enum: ["None", "For Disconnection", "Disconnected"],
+    default: "None", // Default status if the client is not set for disconnection
   },
   contact: {
     type: Number,
@@ -94,6 +99,9 @@ let clientSchema = new mongoose.Schema({
   sequenceNumber: {
     type: Number,
   }, // Sequential number (001-999)
+  unpaidBills: {
+    type: Number,
+  },
 });
 
 const CLIENT = mongoose.model("consumers", clientSchema);

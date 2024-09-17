@@ -2,10 +2,7 @@ const mongoose = require("mongoose");
 const AutoIncrement = require("mongoose-sequence")(mongoose);
 let Payments = new mongoose.Schema({
   //make sure meron kang advance payment dito
-  billNo: {
-    type: Number, // Make sure this matches your increment field
-    require: true,
-  },
+  billNo: [Number],
   acc_num: {
     type: String,
     require: true,

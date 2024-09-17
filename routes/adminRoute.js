@@ -145,7 +145,7 @@ route.get("/billSummary", (req, res) => {
 });
 route.post("/update_pendingStatus", async (req, res) => {
   try {
-    console.log("Updating pending status");
+    console.log("Updating pending status", req.body);
     const result = await customerctrl.UpdatePending(req.body);
     res.status(200).json({ message: "Status updated successfully", result });
   } catch (error) {
@@ -154,4 +154,14 @@ route.post("/update_pendingStatus", async (req, res) => {
       .status(500)
       .json({ message: "Error updating status", error: error.message });
   }
+});
+route.get("/rates", (req, res) => {
+  console.log("Getting Rates");
+  controller.getAllRates(req.body).then((result) => {
+    res.json(result);
+  });
+});
+route.put("/updateRate/:id", (req, res) => {
+  console.log("Updating Rates");
+  controller.updateRate(req, res);
 });

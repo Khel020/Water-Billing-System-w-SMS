@@ -152,7 +152,6 @@ module.exports.AddBill = async (data) => {
         // Add the commodity charge to the total bill amount
         totalBillAmount =
           parseFloat(totalBillAmount) + parseFloat(commodityCharge);
-
         console.log("TotalBillAmount", totalBillAmount);
       }
 
@@ -179,7 +178,7 @@ module.exports.AddBill = async (data) => {
           reading_date: { $lt: readingDate },
           payment_status: { $in: ["Unpaid", "Partial"] },
         })
-        .sort({ reading_date: 1 });
+        .sort({ reading_date: -1 });
 
       let arrears = 0;
       if (latestUnpaidBill) {
@@ -193,7 +192,10 @@ module.exports.AddBill = async (data) => {
       }
 
       // Calculate total due amount
-      const totalDue = totalBillAmount + arrears + additionalFees;
+      const totalDue =
+        parseFloat(totalBillAmount) +
+        parseFloat(arrears) +
+        parseFloat(additionalFees);
 
       // Handle advance payment
       let remainingAdvancePayment = clientExists.advancePayment || 0;
@@ -208,13 +210,6 @@ module.exports.AddBill = async (data) => {
           remainingAdvancePayment = 0;
         }
       }
-
-      const unpaidBills = await bills.countDocuments({
-        acc_num: String(billData.acc_num), // Ensures it's treated as a string
-        payment_status: "Unpaid",
-      });
-
-      console.log("UNPAID BILLS", unpaidBills);
 
       // Create and save the new bill
       const newBill = new bills({
@@ -239,6 +234,25 @@ module.exports.AddBill = async (data) => {
 
       const result = await newBill.save();
       results.push(result);
+
+      const unpaidBills = await bills.countDocuments({
+        acc_num: String(billData.acc_num), // Ensures it's treated as a string
+        payment_status: "Unpaid",
+      });
+
+      console.log("UNPAID BILLS", unpaidBills);
+
+      if (unpaidBills >= 3) {
+        await Client.findOneAndUpdate(
+          { acc_num: billData.acc_num },
+          {
+            status: "Inactive", // Mark the client as inactive
+            disconnection_status: "For Disconnection", // Set for disconnection
+          },
+          { new: true }
+        );
+        console.log("Client marked as inactive and set for disconnection.");
+      }
 
       await Client.findOneAndUpdate(
         { acc_num: billData.acc_num },
@@ -378,6 +392,7 @@ module.exports.calculateChange = async (data) => {
     if (!data.acc_num || !data.paymentAmount) {
       return { success: false, message: "Invalid input data" };
     }
+
     // Find the client by account number
     const client = await Client.findOne({ acc_num: data.acc_num }).exec();
 
@@ -385,12 +400,24 @@ module.exports.calculateChange = async (data) => {
       return { success: false, message: "Client not found" };
     }
 
-    const newBalance = client.totalBalance - data.paymentAmount;
+    const newBalance = parseFloat(
+      client.totalBalance - data.paymentAmount
+    ).toFixed(2);
     let change = 0;
 
     if (newBalance < 0) {
-      change = Math.abs(newBalance); // Calculate the change amount
+      // Calculate the absolute value of the negative balance (i.e., the change)
+      change = parseFloat(Math.abs(newBalance).toFixed(2));
+
+      // If the change is less than 1 peso, round it down to 0
+      if (change < 0) {
+        change = 0;
+      } else {
+        // Optionally round to the nearest whole peso if it's >= 1 peso
+        change = Math.round(change);
+      }
     }
+
     return { success: true, change };
   } catch (error) {
     console.error("Error calculating change:", error.message);
@@ -402,6 +429,7 @@ module.exports.AddPayment = async (data) => {
   const results = [];
   let remainingPayment = data.paymentAmount; // Initialize with the full payment amount
   let paymentRecord = null; // To store the payment record
+  const billNumbers = []; // To store the list of bill numbers
 
   try {
     // Find all unpaid bills for the consumer, ordered by oldest to newest
@@ -418,13 +446,13 @@ module.exports.AddPayment = async (data) => {
         address: data.address,
         paymentDate: data.p_date,
         tendered: data.paymentAmount,
+        billNo: [], // Initialize empty list for bill numbers
         amountDue: 0, // This will be updated to the total amount due
         change: 0, // To be calculated
         balance: 0, // To be calculated
       });
 
       let totalDue = 0; // Total amount due for all bills paid
-      let totalChange = 0; // Total change calculated
       let totalBalance = 0; // Total remaining balance
 
       for (const bill of unpaidBills) {
@@ -447,12 +475,16 @@ module.exports.AddPayment = async (data) => {
         remainingPayment -= paymentApplied;
         totalDue += paymentApplied; // Accumulate the total due amount
         totalBalance += remainingBalance; // Accumulate the total remaining balance
+
+        // Collect the bill number
+        billNumbers.push(bill.billNumber);
       }
 
       // Finalize the payment record
       paymentRecord.amountDue = totalDue;
       paymentRecord.change = remainingPayment > 0 ? remainingPayment : 0;
       paymentRecord.balance = parseFloat(totalBalance.toFixed(2)); // Ensure balance is a number with 2 decimal places
+      paymentRecord.billNo = billNumbers; // Save the list of bill numbers
 
       // Save the payment record
       const paymentResult = await paymentRecord.save();
@@ -478,6 +510,7 @@ module.exports.AddPayment = async (data) => {
         amountDue: data.paymentAmount, // Assume full payment for the installation fee
         change: 0, // No change expected
         balance: 0.0, // No remaining balance
+        billNumbers: [], // No bill numbers for installation fee
       });
 
       const paymentResult = await newPayment.save();

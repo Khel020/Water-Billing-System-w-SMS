@@ -6,25 +6,6 @@ const route = exp.Router();
 const bcrypt = require("bcrypt");
 const pnv = process.env;
 
-exports.updateRate = async (req, res) => {
-  try {
-    const { id, category, minConsumption, maxConsumption, rate } = req.body;
-
-    const updatedRate = await rates.findByIdAndUpdate(
-      id,
-      { category, minConsumption, maxConsumption, rate },
-      { new: true }
-    );
-
-    if (!updatedRate) {
-      return res.status(404).json({ message: "Rate not found" });
-    }
-
-    return res.status(200).json(updatedRate);
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
-};
 exports.addRate = async (data) => {
   try {
     const { category, size, minimumCharge, commodityRates } = data;
