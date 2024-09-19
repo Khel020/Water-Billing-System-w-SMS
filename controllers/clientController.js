@@ -285,3 +285,16 @@ exports.UpdatePending = async (data) => {
     throw error; // Optionally, rethrow the error for further handling
   }
 };
+exports.GetForDisconnection = async () => {
+  try {
+    const ForDisconnect = await client.find({
+      disconnection_status: "For Disconnection",
+      status: "Inactive",
+    });
+
+    return ForDisconnect; // Return the result
+  } catch (error) {
+    console.error("Error fetching accounts for disconnection:", error);
+    throw error; // Throw the error so it can be handled by the calling function
+  }
+};

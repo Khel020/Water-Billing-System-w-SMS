@@ -105,3 +105,15 @@ route.get("/billStatus", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+route.get("/ForDisconnect", (req, res) => {
+  console.log("Getting Accounts for DC");
+  controller
+    .GetForDisconnection(req.query)
+    .then((result) => {
+      res.send(result);
+    })
+    .catch((error) => {
+      console.error("Error fetching data:", error);
+      res.status(500).send("Failed to retrieve accounts for disconnection.");
+    });
+});

@@ -79,8 +79,12 @@ let billSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ["Residential", "Commercial"],
+    enum: ["Residential", "Commercial", "Government", "Industrial"],
     required: true,
+  },
+  payment_date: {
+    type: Date,
+    require: [true, "Payment Date Required"],
   },
 });
 

@@ -187,23 +187,6 @@ exports.updateAccountStatus = async (req, res) => {
     };
   }
 };
-exports.GetAllPayments = async () => {
-  try {
-    const result = await payments.find({});
-    console.log(result);
-    return {
-      success: true,
-      message: "Payments fetched successfully",
-      data: result,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: "Failed to fetch payments",
-      error: error.message,
-    };
-  }
-};
 exports.ArchiveAccount = async (data) => {
   const { status, usertype, _id: id } = data;
 
@@ -261,27 +244,40 @@ exports.ArchiveAccount = async (data) => {
     };
   }
 };
-exports.getBillSummary = async (year) => {
+exports.getBillSummary = async (req, res) => {
   try {
-    // Parse the year from the input, assuming it is passed as a string
-    const filterByYear = parseInt(year.year, 10);
-    console.log("Filtering bills for year:", filterByYear);
+    // Extract startDate and endDate from query parameters
+    const { startDate, endDate } = req;
+
+    if (!startDate || !endDate) {
+      return { message: "Start date and end date are required." };
+    }
+
+    // Parse dates
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    console.log("Filtering bills from:", start, "to:", end);
 
     // Perform the aggregation
     const summary = await bills.aggregate([
       {
         $match: {
-          $expr: { $eq: [{ $year: "$reading_date" }, filterByYear] }, // Filter by year
+          reading_date: { $gte: start, $lte: end },
         },
       },
       {
         $group: {
           _id: {
-            year: { $year: "$reading_date" }, // Group by year
-            month: { $month: "$reading_date" }, // Group by month
+            month: { $month: "$reading_date" },
+            year: { $year: "$reading_date" },
+            category: "$category", // Assuming you have a category field
           },
-          totalBills: { $sum: 1 }, // Count total bills
-          totalAmount: { $sum: "$currentBill" }, // Sum of all totalDue amounts
+          totalBills: { $sum: 1 },
+          totalBilled: { $sum: "$currentBill" }, // Total amount billed
+          totalConsumption: { $sum: "$consumption" }, // Assuming you have a consumption field
+          totalAmountPaid: { $sum: "$amountPaid" }, // Assuming you have an amountPaid field
+          totalPenalties: { $sum: "$p_charge" }, // Assuming you have a penalties field
         },
       },
       {
@@ -289,29 +285,35 @@ exports.getBillSummary = async (year) => {
           _id: 0,
           month: {
             $concat: [
-              { $toString: "$_id.month" }, // Month number
+              { $toString: "$_id.month" },
               "-",
-              { $toString: "$_id.year" }, // Year
+              { $toString: "$_id.year" },
             ],
           },
+          category: "$_id.category",
+          totalBilled: 1,
           totalBills: 1,
-          totalAmount: 1,
+          totalConsumption: 1,
+          totalAmountPaid: 1,
+          totalPenalties: 1,
         },
       },
       {
-        $sort: { month: 1 }, // Sort by month
+        $sort: { month: 1, category: 1 },
       },
     ]);
 
     // Debug: Log the aggregation pipeline stages
     console.log("Aggregation Pipeline Result:", summary);
 
-    return summary;
+    // Return the result as a JSON response
+    return { summary };
   } catch (error) {
-    console.error("Error fetching monthly summary:", error);
-    return []; // Return an empty array in case of error
+    console.error("Error fetching bill summary:", error);
+    res.status(500).json({ message: "Server Error" });
   }
 };
+
 exports.getAllRates = async () => {
   try {
     const rates = await Rates.find();
@@ -355,5 +357,64 @@ exports.updateRate = async (req, res) => {
   } catch (error) {
     console.error("Error updating rate:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+exports.getConsumerCollectionSummary = async (req, res) => {
+  try {
+    const { startDate, endDate } = req; // Make sure to use req.query for query parameters
+
+    // Parse and adjust the start and end dates to cover the entire month
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Ensure the end date covers the whole month
+    end.setMonth(end.getMonth() + 1); // Move to the next month
+    end.setDate(0); // Set to the last day of the current month
+
+    // Log the dates for debugging
+    console.log("Start Date:", start);
+    console.log("End Date:", end);
+
+    // Aggregate the data based on the adjusted start and end dates
+    const collectionSummary = await bills.aggregate([
+      {
+        $match: {
+          payment_date: { $gte: start, $lte: end },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            acc_num: "$acc_num",
+            accountName: "$accountName",
+          },
+          totalBilled: { $sum: "$currentBill" },
+          totalCollected: { $sum: "$amountPaid" },
+          outstanding: { $sum: "$totalDue" },
+          lastPaymentDate: { $max: "$payment_date" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          acc_num: "$_id.acc_num",
+          accountName: "$_id.accountName",
+          totalBilled: 1,
+          totalCollected: 1,
+          outstanding: 1,
+          lastPaymentDate: 1,
+        },
+      },
+      { $sort: { accountName: 1 } },
+    ]);
+
+    // Return the result
+    return collectionSummary;
+  } catch (error) {
+    console.error("Error fetching consumer collection summary:", error);
+    return res.status(500).json({
+      message: "Failed to fetch collection summary",
+      error: error.message,
+    });
   }
 };

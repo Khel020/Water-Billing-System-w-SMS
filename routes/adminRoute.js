@@ -123,12 +123,28 @@ route.get("/forActivation", (req, res) => {
     res.status(200).json({ success: true, result });
   });
 });
-route.get("/getAllPayments", (req, res) => {
-  console.log("Payments");
-  controller.GetAllPayments(req.body).then((result) => {
-    console.log("result in route", result);
-    res.send(result);
-  });
+route.get("/collectionSummary", async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    console.log("startDate", startDate);
+    console.log("endDate", endDate);
+    if (!startDate || !endDate) {
+      return res
+        .status(400)
+        .json({ message: "Start date and end date are required." });
+    }
+    const result = await controller.getConsumerCollectionSummary({
+      startDate,
+      endDate,
+    });
+
+    console.log("Collection SUMMARY RESULT", result);
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error fetching bill summary:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
 });
 route.put("/archiveAccount", (req, res) => {
   console.log("Account for Archive", req.body);
@@ -136,13 +152,28 @@ route.put("/archiveAccount", (req, res) => {
     res.send(result);
   });
 });
-route.get("/billSummary", (req, res) => {
-  console.log("Getting Bill Summary");
-  controller.getBillSummary(req.body).then((result) => {
-    console.log("Result is ", result);
+route.get("/billSummary/", async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    console.log("startDate", startDate);
+    console.log("endDate", endDate);
+    if (!startDate || !endDate) {
+      return res
+        .status(400)
+        .json({ message: "Start date and end date are required." });
+    }
+    const result = await controller.getBillSummary({ startDate, endDate });
+
+    console.log("BILLING SUMMARY RESULT", result);
+
+    // Respond with the result
     res.json(result);
-  });
+  } catch (error) {
+    console.error("Error fetching bill summary:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
 });
+
 route.post("/update_pendingStatus", async (req, res) => {
   try {
     console.log("Updating pending status", req.body);

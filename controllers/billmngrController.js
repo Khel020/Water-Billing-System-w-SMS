@@ -458,23 +458,28 @@ module.exports.AddPayment = async (data) => {
       for (const bill of unpaidBills) {
         if (remainingPayment <= 0) break; // Stop if there's no payment left to apply
 
-        const billDue = bill.currentBill; // Current bill amount
+        const billDue = parseFloat(bill.currentBill).toFixed(2); // Ensure it's a decimal value
         const paymentApplied = Math.min(remainingPayment, billDue); // Apply either the remaining payment or the billDue
-        const remainingBalance = billDue - paymentApplied; // Calculate the remaining balance
+        let remainingBalance = billDue - paymentApplied; // Calculate the remaining balance
+
+        // If the remaining balance is less than 1 (e.g., 0.40, 0.99), set it to 0
+        remainingBalance =
+          remainingBalance < 1 ? 0 : remainingBalance.toFixed(2);
 
         // Update the bill with the payment information
         await bills.updateOne(
           { _id: bill._id }, // Use _id for precise updates
           {
-            amountPaid: paymentApplied,
+            amountPaid: parseFloat(paymentApplied).toFixed(2),
             totalDue: remainingBalance,
             payment_status: remainingBalance > 0 ? "Partial" : "Paid",
+            payment_date: data.p_date,
           }
         );
 
         remainingPayment -= paymentApplied;
-        totalDue += paymentApplied; // Accumulate the total due amount
-        totalBalance += remainingBalance; // Accumulate the total remaining balance
+        totalDue += parseFloat(paymentApplied); // Accumulate the total due amount
+        totalBalance += parseFloat(remainingBalance); // Accumulate the total remaining balance
 
         // Collect the bill number
         billNumbers.push(bill.billNumber);
