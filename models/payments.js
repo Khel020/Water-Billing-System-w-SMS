@@ -33,6 +33,7 @@ let Payments = new mongoose.Schema({
     type: Number,
     require: true,
   },
+
   tendered: {
     type: Number,
     require: true,

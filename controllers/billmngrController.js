@@ -79,7 +79,7 @@ module.exports.AddBill = async (data) => {
       // Find the latest bill of the client, if exists
       const latestBill = await bills
         .findOne({ acc_num: billData.acc_num })
-        .sort({ reading_date: -1 })
+        .sort({ reading_date: 1 })
         .exec();
 
       // Assigning Amount to previous
@@ -263,7 +263,11 @@ module.exports.AddBill = async (data) => {
       );
     }
 
-    return { message: "All bills added successfully", data: results };
+    return {
+      success: true,
+      message: "All bills added successfully",
+      data: results,
+    };
   } catch (err) {
     return { error: `There was an error: ${err.message}` };
   }
@@ -323,9 +327,17 @@ module.exports.GetBillsByBillNum = async (data) => {
     return { error: "There is an error" };
   }
 };
-module.exports.findBillsPayment = async (data) => {
+
+module.exports.findBillsPayment = async (account) => {
   try {
-    const client = await Client.findOne({ acc_num: data.acc_number }).exec();
+    console.log("Search", account);
+
+    // Check if the search value is either account number or account name
+    const client = await Client.findOne({
+      $or: [{ acc_num: account }, { accountName: account }],
+    }).exec();
+
+    console.log("client", client);
 
     if (client) {
       const consumerBills = await bills
@@ -338,36 +350,40 @@ module.exports.findBillsPayment = async (data) => {
           totalAmountDue: client.totalBalance,
           totalPenalty: 0,
           consumerName: client.accountName,
+          accountNum: client.acc_num,
           address: client.c_address,
         };
       }
 
+      // Find the latest bill
       const latestBill = await bills
         .findOne({ acc_num: client.acc_num })
         .sort({ reading_date: -1 })
         .exec();
 
-      // Calculate totalAmountDue based on the latest bill
-      let billNo = latestBill.billNumber;
-      let billAmount = latestBill.currentBill;
-      let arrears = latestBill.arrears;
-      let totalAmountDue = client.totalBalance;
-      let totalPenalty = latestBill.p_charge;
-      // Calculate total penalties from all unpaid bills
+      console.log("latestBill", latestBill);
+      const billNo = latestBill.billNumber;
+      const billAmount = latestBill.currentBill;
+      const arrears = latestBill.arrears;
+      const totalAmountDue = client.totalBalance;
+      const totalPenalty = latestBill.p_charge;
 
+      // Return the response with bill details
       return {
         arrears,
         billAmount,
         totalAmountDue,
         totalPenalty,
+        accountNum: client.acc_num,
         consumerName: client.accountName,
         address: client.c_address,
-        billNo: billNo,
+        billNo,
       };
     } else {
-      console.log("Client not found.");
+      // Return 404 if the client is not found
       return {
-        consumerBills: [],
+        error: "Client not found",
+        message: "Client not found",
         totalAmountDue: 0,
         totalPenalty: 0,
         consumerName: null,
@@ -376,8 +392,10 @@ module.exports.findBillsPayment = async (data) => {
     }
   } catch (error) {
     console.error("Error finding bills payment:", error);
+
+    // Handle server error
     return {
-      consumerBills: [],
+      message: "Server error",
       totalAmountDue: 0,
       totalPenalty: 0,
       consumerName: null,
@@ -557,17 +575,19 @@ module.exports.GetPaymentsAccNum = async (acc_num) => {
     throw new Error("Error fetching payments");
   }
 };
-module.exports.getBillStatus = async () => {
-  try {
-    const totalBills = await bills.countDocuments();
-    const unpaidBills = await bills.countDocuments({
-      payment_status: "Unpaid",
-    });
-    const paidBills = await bills.countDocuments({ payment_status: "Paid" });
+module.exports.getLatestBill = async (acc_num) => {
+  const latestBill = await bills
+    .findOne({ acc_num: acc_num })
+    .sort({ reading_date: -1 })
+    .select("reading_date acc_num accountName category present_read") // Isama ang present_read
+    .exec(); // Gamitin ang exec para sa mas magandang error handling
 
-    return { totalBills, unpaidBills, paidBills };
-  } catch (error) {
-    console.error("Error fetching bills status:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+  if (!latestBill) {
+    return { latestBill: null, prev_reading: null }; // Kung walang bill, ibalik null
   }
+  console.log("latestBill", latestBill);
+  return {
+    latestBill,
+    prev_reading: latestBill.present_read, // Kunin ang present_read para sa prev_reading
+  };
 };

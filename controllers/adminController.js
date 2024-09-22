@@ -361,7 +361,7 @@ exports.updateRate = async (req, res) => {
 };
 exports.getConsumerCollectionSummary = async (req, res) => {
   try {
-    const { startDate, endDate } = req; // Make sure to use req.query for query parameters
+    const { startDate, endDate } = req; // Use req.query for query parameters
 
     // Parse and adjust the start and end dates to cover the entire month
     const start = new Date(startDate);
@@ -376,10 +376,11 @@ exports.getConsumerCollectionSummary = async (req, res) => {
     console.log("End Date:", end);
 
     // Aggregate the data based on the adjusted start and end dates
-    const collectionSummary = await bills.aggregate([
+    const collectionSummary = await payments.aggregate([
+      // Use the payments collection
       {
         $match: {
-          payment_date: { $gte: start, $lte: end },
+          paymentDate: { $gte: start, $lte: end },
         },
       },
       {
@@ -388,10 +389,10 @@ exports.getConsumerCollectionSummary = async (req, res) => {
             acc_num: "$acc_num",
             accountName: "$accountName",
           },
-          totalBilled: { $sum: "$currentBill" },
-          totalCollected: { $sum: "$amountPaid" },
-          outstanding: { $sum: "$totalDue" },
-          lastPaymentDate: { $max: "$payment_date" },
+          totalBilled: { $sum: "$amountDue" }, // Total billed is amount due
+          totalCollected: { $sum: { $subtract: ["$tendered", "$change"] } }, // Total collected
+          outstanding: { $sum: "$balance" }, // Outstanding balance
+          lastPaymentDate: { $max: "$paymentDate" }, // Last payment date
         },
       },
       {

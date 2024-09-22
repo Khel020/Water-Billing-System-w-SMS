@@ -55,12 +55,29 @@ route.get("/getBillbyBillNum", (req, res) => {
     });
 });
 
-route.get("/findBillPay/:acc_number", (req, res) => {
-  console.log("finding bill for payment");
-  biller.findBillsPayment(req.params).then((response) => {
-    res.send(response);
-  });
+route.get("/findBillPay/:account", async (req, res) => {
+  try {
+    console.log("Finding bill for payment...", req.params.account);
+
+    // Pass the account parameter to the findBillsPayment function
+    const response = await biller.findBillsPayment(req.params.account);
+
+    if (!response) {
+      return res
+        .status(404)
+        .json({ message: "No bills found for this account." });
+    }
+
+    // Send the response if data is found
+    res.json(response);
+  } catch (error) {
+    console.error("Error finding bill for payment:", error);
+
+    // Handle any errors
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
 });
+
 route.get("/status", async (req, res) => {
   try {
     const stats = await GetTotalClients();
@@ -116,4 +133,16 @@ route.get("/ForDisconnect", (req, res) => {
       console.error("Error fetching data:", error);
       res.status(500).send("Failed to retrieve accounts for disconnection.");
     });
+});
+route.get("/latestBill/:acc_num", (req, res) => {
+  console.log("Getting latest bill using acc_num");
+  const acc_num = req.params.acc_num;
+  console.log("ACCOUNT num", acc_num);
+  try {
+    biller.getLatestBill(acc_num).then((result) => {
+      res.json(result);
+    });
+  } catch {
+    res.status(500).json({ error: error.message });
+  }
 });

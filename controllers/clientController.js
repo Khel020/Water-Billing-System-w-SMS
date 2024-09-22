@@ -78,7 +78,7 @@ exports.UpdateClientByAccNum = async (data) => {
     status: data.status,
     client_type: data.client_type,
     email: data.email,
-    c_address: data.address,
+    c_address: data.c_address,
   };
   try {
     // Ensure that the `updates` object contains valid fields and values
