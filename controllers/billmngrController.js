@@ -79,7 +79,7 @@ module.exports.AddBill = async (data) => {
       // Find the latest bill of the client, if exists
       const latestBill = await bills
         .findOne({ acc_num: billData.acc_num })
-        .sort({ reading_date: 1 })
+        .sort({ reading_date: -1 })
         .exec();
 
       // Assigning Amount to previous
@@ -514,7 +514,7 @@ module.exports.AddPayment = async (data) => {
       results.push({ paymentResult, OR_NUM: paymentResult.OR_NUM });
 
       // Update the client's total balance and advance payment (if applicable)
-      await Client.findOneAndUpdate(
+      const result = await Client.findOneAndUpdate(
         { acc_num: data.acc_num },
         {
           totalBalance: totalBalance,
@@ -522,6 +522,19 @@ module.exports.AddPayment = async (data) => {
         },
         { new: true }
       );
+      if (
+        result.status === "Inactive" ||
+        result.disconnection_status === "For Disconnection"
+      ) {
+        await Client.findOneAndUpdate(
+          { acc_num: data.acc_num },
+          {
+            status: "Active",
+            disconnection_status: "Paid",
+          },
+          { new: true }
+        );
+      }
     } else {
       // If no bills exist, assume this is an installation fee payment
       const newPayment = new Payment({
@@ -573,6 +586,20 @@ module.exports.GetPaymentsAccNum = async (acc_num) => {
   } catch (error) {
     console.error("Error fetching payments:", error);
     throw new Error("Error fetching payments");
+  }
+};
+module.exports.getBillStatus = async () => {
+  try {
+    const totalBills = await bills.countDocuments();
+    const unpaidBills = await bills.countDocuments({
+      payment_status: "Unpaid",
+    });
+    const paidBills = await bills.countDocuments({ payment_status: "Paid" });
+
+    return { totalBills, unpaidBills, paidBills };
+  } catch (error) {
+    console.error("Error fetching bills status:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 module.exports.getLatestBill = async (acc_num) => {

@@ -54,7 +54,6 @@ route.get("/getBillbyBillNum", (req, res) => {
       res.status(500).send({ error: "Failed to fetch bill" });
     });
 });
-
 route.get("/findBillPay/:account", async (req, res) => {
   try {
     console.log("Finding bill for payment...", req.params.account);
@@ -77,7 +76,6 @@ route.get("/findBillPay/:account", async (req, res) => {
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 });
-
 route.get("/status", async (req, res) => {
   try {
     const stats = await GetTotalClients();

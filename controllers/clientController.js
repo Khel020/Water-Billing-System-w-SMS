@@ -137,7 +137,7 @@ exports.ConsumersWithBill = async () => {
 
     // Get all clients
     const allClients = await client.find({}).exec();
-
+    console.log("All Clients", allClients);
     // Get distinct account numbers from the bills collection
     const billAccNumbers = await bill.distinct("acc_num").exec();
 

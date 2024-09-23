@@ -45,7 +45,7 @@ let clientSchema = new mongoose.Schema({
   },
   disconnection_status: {
     type: String,
-    enum: ["None", "For Disconnection", "Disconnected"],
+    enum: ["None", "For Disconnection", "Disconnected", "Paid"],
     default: "None", // Default status if the client is not set for disconnection
   },
   contact: {
