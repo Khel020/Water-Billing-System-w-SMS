@@ -47,7 +47,11 @@ exports.CreateClient = async (data) => {
 
     const result = await NewClient.save();
 
-    return { result: result, message: "Client Successfully Created" };
+    return {
+      success: true,
+      result: result,
+      message: "Client Successfully Created",
+    };
   } catch (err) {
     // Log and return error message
     console.error(err);
@@ -137,7 +141,6 @@ exports.ConsumersWithBill = async () => {
 
     // Get all clients
     const allClients = await client.find({}).exec();
-    console.log("All Clients", allClients);
     // Get distinct account numbers from the bills collection
     const billAccNumbers = await bill.distinct("acc_num").exec();
 

@@ -4,8 +4,8 @@ const controller = require("../controllers/clientController.js");
 const auth = require("../middleware/Auth.js");
 
 module.exports = route;
+
 route.get("/clients", (req, res) => {
-  console.log("Loading Clients");
   controller.ConsumersWithBill(req.body).then((result) => {
     res.send(result);
   });

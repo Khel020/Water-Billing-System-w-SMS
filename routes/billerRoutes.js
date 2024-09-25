@@ -138,6 +138,7 @@ route.get("/latestBill/:acc_num", (req, res) => {
   console.log("ACCOUNT num", acc_num);
   try {
     biller.getLatestBill(acc_num).then((result) => {
+      console.log("result", result);
       res.json(result);
     });
   } catch {

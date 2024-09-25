@@ -137,18 +137,33 @@ module.exports.AddBill = async (data) => {
             rangeEnd - rangeStart + 1
           );
 
+          // Debugging logs to trace the values
+          console.log(`Rate Range: ${rangeStart} - ${rangeEnd}`);
+          console.log(`Remaining Consumption: ${remainingConsumption}`);
+          console.log(`Applicable Consumption: ${applicableConsumption}`);
+          console.log(`Rate per Cubic Meter: ${ratePerCubicMeter}`);
+
           // Add the charge for this range to the total commodity charge
-          commodityCharge += applicableConsumption * ratePerCubicMeter;
-          console.log("commodityCharge", commodityCharge);
+          const rangeCharge = applicableConsumption * ratePerCubicMeter;
+          commodityCharge += rangeCharge;
+
+          // Log the charge calculated for this range
+          console.log(`Commodity Charge for this range: ${rangeCharge}`);
+          console.log(`Total Commodity Charge so far: ${commodityCharge}`);
+
           // Decrease the remaining consumption
           remainingConsumption -= applicableConsumption;
-          console.log("remainingConsumption", remainingConsumption);
-          // If all consumption has been accounted for, break out of the loop
 
+          // Log the updated remaining consumption
+          console.log(`Updated Remaining Consumption: ${remainingConsumption}`);
+
+          // If all consumption has been accounted for, break out of the loop
           if (remainingConsumption <= 0) {
+            console.log("No remaining consumption left. Exiting loop.");
             break;
           }
         }
+
         // Add the commodity charge to the total bill amount
         totalBillAmount =
           parseFloat(totalBillAmount) + parseFloat(commodityCharge);
@@ -242,24 +257,18 @@ module.exports.AddBill = async (data) => {
 
       console.log("UNPAID BILLS", unpaidBills);
 
-      if (unpaidBills >= 3) {
-        await Client.findOneAndUpdate(
-          { acc_num: billData.acc_num },
-          {
-            status: "Inactive", // Mark the client as inactive
-            disconnection_status: "For Disconnection", // Set for disconnection
-          },
-          { new: true }
-        );
-        console.log("Client marked as inactive and set for disconnection.");
-      }
-
       await Client.findOneAndUpdate(
         { acc_num: billData.acc_num },
         {
           totalBalance: newTotalBalance,
           advancePayment: remainingAdvancePayment,
-        }
+          status: unpaidBills >= 3 ? "Inactive" : clientExists.status,
+          disconnection_status:
+            unpaidBills >= 3
+              ? "For Disconnection"
+              : clientExists.disconnection_status,
+        },
+        { new: true }
       );
     }
 
@@ -347,7 +356,7 @@ module.exports.findBillsPayment = async (account) => {
       // If no bills exist, return the totalBalance from the client
       if (consumerBills.length === 0) {
         return {
-          totalAmountDue: client.totalBalance,
+          totalAmountDue: parseFloat(client.totalBalance).toFixed(2),
           totalPenalty: 0,
           consumerName: client.accountName,
           accountNum: client.acc_num,
@@ -355,7 +364,6 @@ module.exports.findBillsPayment = async (account) => {
         };
       }
 
-      // Find the latest bill
       const latestBill = await bills
         .findOne({ acc_num: client.acc_num })
         .sort({ reading_date: -1 })
@@ -363,10 +371,10 @@ module.exports.findBillsPayment = async (account) => {
 
       console.log("latestBill", latestBill);
       const billNo = latestBill.billNumber;
-      const billAmount = latestBill.currentBill;
-      const arrears = latestBill.arrears;
-      const totalAmountDue = client.totalBalance;
-      const totalPenalty = latestBill.p_charge;
+      const billAmount = parseFloat(latestBill.currentBill).toFixed(2); // Ensure 2 decimal places
+      const arrears = parseFloat(latestBill.arrears).toFixed(2);
+      const totalAmountDue = parseFloat(client.totalBalance).toFixed(2);
+      const totalPenalty = parseFloat(latestBill.p_charge).toFixed(2); // Ensure penalty is a decimal
 
       // Return the response with bill details
       return {
@@ -453,7 +461,7 @@ module.exports.AddPayment = async (data) => {
     // Find all unpaid bills for the consumer, ordered by oldest to newest
     const unpaidBills = await bills
       .find({ acc_num: data.acc_num, payment_status: { $ne: "Paid" } })
-      .sort({ reading_date: 1 }) // Sort by oldest first
+      .sort({ reading_date: -1 }) // Sort by oldest first
       .exec();
 
     if (unpaidBills.length > 0) {
@@ -476,13 +484,15 @@ module.exports.AddPayment = async (data) => {
       for (const bill of unpaidBills) {
         if (remainingPayment <= 0) break; // Stop if there's no payment left to apply
 
-        const billDue = parseFloat(bill.currentBill).toFixed(2); // Ensure it's a decimal value
+        const billDue = parseFloat(bill.totalDue).toFixed(2); // Ensure it's a decimal value
         const paymentApplied = Math.min(remainingPayment, billDue); // Apply either the remaining payment or the billDue
         let remainingBalance = billDue - paymentApplied; // Calculate the remaining balance
+        console.log("Remaining balance1", remainingBalance);
 
-        // If the remaining balance is less than 1 (e.g., 0.40, 0.99), set it to 0
+        // Handle floating-point precision issues by rounding to two decimal places
         remainingBalance =
-          remainingBalance < 1 ? 0 : remainingBalance.toFixed(2);
+          Math.abs(remainingBalance) < 0.01 ? 0 : remainingBalance.toFixed(2);
+        console.log("Remaining balance2", remainingBalance);
 
         // Update the bill with the payment information
         await bills.updateOne(
@@ -490,7 +500,7 @@ module.exports.AddPayment = async (data) => {
           {
             amountPaid: parseFloat(paymentApplied).toFixed(2),
             totalDue: remainingBalance,
-            payment_status: remainingBalance > 0 ? "Partial" : "Paid",
+            payment_status: remainingBalance > 0 ? "Partial" : "Paid", // Update status correctly
             payment_date: data.p_date,
           }
         );
