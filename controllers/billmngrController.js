@@ -371,6 +371,7 @@ module.exports.findBillsPayment = async (account) => {
 
       console.log("latestBill", latestBill);
       const billNo = latestBill.billNumber;
+      const status = latestBill.payment_status;
       const billAmount = parseFloat(latestBill.currentBill).toFixed(2); // Ensure 2 decimal places
       const arrears = parseFloat(latestBill.arrears).toFixed(2);
       const totalAmountDue = parseFloat(client.totalBalance).toFixed(2);
@@ -379,6 +380,7 @@ module.exports.findBillsPayment = async (account) => {
       // Return the response with bill details
       return {
         arrears,
+        status,
         billAmount,
         totalAmountDue,
         totalPenalty,
@@ -612,19 +614,32 @@ module.exports.getBillStatus = async () => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 module.exports.getLatestBill = async (acc_num) => {
+  // Kunin ang pinakabagong bill
   const latestBill = await bills
     .findOne({ acc_num: acc_num })
     .sort({ reading_date: -1 })
     .select("reading_date acc_num accountName category present_read") // Isama ang present_read
-    .exec(); // Gamitin ang exec para sa mas magandang error handling
+    .exec();
+
+  // Kunin ang client para sa initial reading
+  const client = await Client.findOne({ acc_num })
+    .select("initial_read")
+    .exec();
 
   if (!latestBill) {
-    return { latestBill: null, prev_reading: null }; // Kung walang bill, ibalik null
+    // Kung walang bill, ibalik null at gamitin ang initial_reading bilang prev_reading
+    return {
+      latestBill: null,
+      prev_reading: client ? client.initial_read : null,
+    };
   }
+
   console.log("latestBill", latestBill);
   return {
     latestBill,
-    prev_reading: latestBill.present_read, // Kunin ang present_read para sa prev_reading
+    prev_reading:
+      latestBill.present_read || (client ? client.initial_reading : null), // Gamitin ang initial_reading kung walang present_read
   };
 };

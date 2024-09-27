@@ -301,3 +301,21 @@ exports.GetForDisconnection = async () => {
     throw error; // Throw the error so it can be handled by the calling function
   }
 };
+exports.getClientwithBalance = async () => {
+  try {
+    const withBalance = await client.find({
+      totalBalance: { $exists: true, $gt: 0 },
+    });
+
+    if (withBalance.length === 0) {
+      return { success: false, message: "No clients found with a balance." };
+    }
+
+    return { success: true, withBalance };
+  } catch (err) {
+    console.error("Error fetching data:", err); // Log the error for debugging
+    return {
+      error: "An error occurred while fetching the data. Please try again.",
+    };
+  }
+};

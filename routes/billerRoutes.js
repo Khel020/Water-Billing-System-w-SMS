@@ -145,3 +145,9 @@ route.get("/latestBill/:acc_num", (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+route.get("/withBalance", (req, res) => {
+  console.log("Getting Client with balances");
+  controller.getClientwithBalance().then((result) => {
+    res.json(result);
+  });
+});
