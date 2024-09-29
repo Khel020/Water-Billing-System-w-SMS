@@ -10,28 +10,27 @@ const pnv = process.env;
 //TODO: Creating Client/ Add Client
 exports.CreateClient = async (data) => {
   try {
-    // Check if the account number or account name is already taken
+    console.log("Data received:", data); // Log the data received
+
     const existingClient = await client.findOne({
       $or: [{ acc_num: data.accountNumber }, { accountName: data.accountName }],
     });
 
     if (existingClient) {
-      // If a client with the same account number or account name exists, return an error
       return {
         error:
           "Account number or account name is already taken. Please use a unique value.",
       };
     }
 
-    const totalBalance = parseFloat(data.installation_fee);
+    const totalBalance = parseFloat(data.installation_fee) || 0; // Use fallback value
 
-    // Create a new client object with total balance included
     let NewClient = new client({
       acc_num: data.accountNumber,
       accountName: data.accountName,
       meter_num: data.meter_num,
       pipe_size: data.pipe_size,
-      meter_brand: data.brand_num,
+      meter_brand: data.meterBrand,
       contact: data.contact,
       initial_read: data.initial_read,
       c_address: data.address,
@@ -42,7 +41,7 @@ exports.CreateClient = async (data) => {
       meter_installer: data.meter_installer,
       zone: data.zone,
       sequenceNumber: data.seq_num,
-      totalBalance: totalBalance, // Add total balance here
+      totalBalance: totalBalance,
     });
 
     const result = await NewClient.save();
@@ -53,10 +52,35 @@ exports.CreateClient = async (data) => {
       message: "Client Successfully Created",
     };
   } catch (err) {
-    // Log and return error message
     console.error(err);
     return { error: "Failed to create client" };
   }
+};
+
+// New function to handle multiple client creation requests
+exports.CreateClientsBatch = async (clientDataArray) => {
+  const results = []; // Array to hold the results of each client creation
+  const errors = []; // Array to hold any errors that occur
+
+  for (const data of clientDataArray) {
+    try {
+      const result = await exports.CreateClient(data);
+      results.push(result); // Add the result to the results array
+    } catch (error) {
+      console.error("Error creating client:", error);
+      errors.push({
+        accountNumber: data.accountNumber,
+        error:
+          error.error || "Failed to create client due to an unexpected error.",
+      });
+    }
+  }
+
+  return {
+    success: errors.length === 0, // Return true if no errors occurred
+    results: results,
+    errors: errors.length > 0 ? errors : null, // Include errors if any
+  };
 };
 
 //TODO: Get all the client
@@ -230,6 +254,21 @@ exports.generateAccountNumber = async (data) => {
       break;
     case "Commercial":
       c_type = 303;
+      break;
+    case "Commercial_A":
+      c_type = 304;
+      break;
+    case "Commercial_B":
+      c_type = 305;
+      break;
+    case "Commercial_C":
+      c_type = 306;
+      break;
+    case "Bulk":
+      c_type = 402;
+      break;
+    case "Industrial":
+      c_type = 503;
       break;
     default:
       throw new Error("Invalid client type");

@@ -165,8 +165,10 @@ module.exports.AddBill = async (data) => {
         }
 
         // Add the commodity charge to the total bill amount
-        totalBillAmount =
-          parseFloat(totalBillAmount) + parseFloat(commodityCharge);
+        totalBillAmount = parseFloat(
+          (parseFloat(totalBillAmount) + parseFloat(commodityCharge)).toFixed(2)
+        );
+
         console.log("TotalBillAmount", totalBillAmount);
       }
 
@@ -214,7 +216,7 @@ module.exports.AddBill = async (data) => {
 
       // Handle advance payment
       let remainingAdvancePayment = clientExists.advancePayment || 0;
-      let newTotalBalance = totalDue;
+      let newTotalBalance = parseFloat(totalDue).toFixed(2);
 
       if (remainingAdvancePayment > 0) {
         if (remainingAdvancePayment >= totalDue) {
@@ -455,7 +457,7 @@ module.exports.calculateChange = async (data) => {
 
 module.exports.AddPayment = async (data) => {
   const results = [];
-  let remainingPayment = data.paymentAmount; // Initialize with the full payment amount
+  let remainingPayment = parseFloat(data.paymentAmount.toFixed(2)); // Initialize with the full payment amount
   let paymentRecord = null; // To store the payment record
   const billNumbers = []; // To store the list of bill numbers
 
@@ -463,7 +465,7 @@ module.exports.AddPayment = async (data) => {
     // Find all unpaid bills for the consumer, ordered by oldest to newest
     const unpaidBills = await bills
       .find({ acc_num: data.acc_num, payment_status: { $ne: "Paid" } })
-      .sort({ reading_date: -1 }) // Sort by oldest first
+      .sort({ reading_date: 1 }) // Sort by oldest first
       .exec();
 
     if (unpaidBills.length > 0) {
@@ -473,6 +475,7 @@ module.exports.AddPayment = async (data) => {
         accountName: data.acc_name,
         address: data.address,
         paymentDate: data.p_date,
+        arrears: data.arrears,
         tendered: data.paymentAmount,
         billNo: [], // Initialize empty list for bill numbers
         amountDue: 0, // This will be updated to the total amount due
@@ -486,38 +489,47 @@ module.exports.AddPayment = async (data) => {
       for (const bill of unpaidBills) {
         if (remainingPayment <= 0) break; // Stop if there's no payment left to apply
 
-        const billDue = parseFloat(bill.totalDue).toFixed(2); // Ensure it's a decimal value
-        const paymentApplied = Math.min(remainingPayment, billDue); // Apply either the remaining payment or the billDue
-        let remainingBalance = billDue - paymentApplied; // Calculate the remaining balance
-        console.log("Remaining balance1", remainingBalance);
+        const billDue = parseFloat(bill.currentBill).toFixed(2);
+        console.log(
+          `Processing Bill ${bill.billNumber} | Bill Due: ${billDue} | Remaining Payment: ${remainingPayment}`
+        );
 
-        // Handle floating-point precision issues by rounding to two decimal places
-        remainingBalance =
-          Math.abs(remainingBalance) < 0.01 ? 0 : remainingBalance.toFixed(2);
-        console.log("Remaining balance2", remainingBalance);
+        const paymentApplied = Math.min(remainingPayment, billDue);
+        let remainingBalance = billDue - paymentApplied; // Calculate the remaining balance
+
+        // Round all values to two decimal places to avoid floating-point errors
+        const paymentAppliedRounded = parseFloat(paymentApplied.toFixed(2));
+        remainingBalance = parseFloat(remainingBalance.toFixed(2));
+        remainingPayment = parseFloat(
+          (remainingPayment - paymentAppliedRounded).toFixed(2)
+        ); // Round here after deduction
+
+        console.log(
+          `Applying Payment: ${paymentAppliedRounded} | Remaining Balance: ${remainingBalance} | Remaining Payment: ${remainingPayment}`
+        );
 
         // Update the bill with the payment information
         await bills.updateOne(
           { _id: bill._id }, // Use _id for precise updates
           {
-            amountPaid: parseFloat(paymentApplied).toFixed(2),
+            amountPaid: paymentAppliedRounded,
             totalDue: remainingBalance,
-            payment_status: remainingBalance > 0 ? "Partial" : "Paid", // Update status correctly
+            payment_status: remainingBalance > 0 ? "Partial" : "Paid",
             payment_date: data.p_date,
           }
         );
 
-        remainingPayment -= paymentApplied;
-        totalDue += parseFloat(paymentApplied); // Accumulate the total due amount
-        totalBalance += parseFloat(remainingBalance); // Accumulate the total remaining balance
+        totalDue += paymentAppliedRounded; // Accumulate the total due amount
+        totalBalance += remainingBalance; // Accumulate the total remaining balance
 
         // Collect the bill number
         billNumbers.push(bill.billNumber);
       }
 
       // Finalize the payment record
-      paymentRecord.amountDue = totalDue;
-      paymentRecord.change = remainingPayment > 0 ? remainingPayment : 0;
+      paymentRecord.amountDue = parseFloat(totalDue.toFixed(2));
+      paymentRecord.change =
+        remainingPayment > 0 ? remainingPayment.toFixed(2) : 0;
       paymentRecord.balance = parseFloat(totalBalance.toFixed(2)); // Ensure balance is a number with 2 decimal places
       paymentRecord.billNo = billNumbers; // Save the list of bill numbers
 
@@ -526,7 +538,7 @@ module.exports.AddPayment = async (data) => {
       results.push({ paymentResult, OR_NUM: paymentResult.OR_NUM });
 
       // Update the client's total balance and advance payment (if applicable)
-      const result = await Client.findOneAndUpdate(
+      const clientUpdateResult = await Client.findOneAndUpdate(
         { acc_num: data.acc_num },
         {
           totalBalance: totalBalance,
@@ -534,9 +546,17 @@ module.exports.AddPayment = async (data) => {
         },
         { new: true }
       );
+
+      console.log("clientUpdateResult", clientUpdateResult);
+
+      console.log(
+        `Client updated: Total Balance: ${totalBalance}, Advance Payment: ${data.advTotalAmount}`
+      );
+
+      // Activate the client if they were inactive or marked for disconnection
       if (
-        result.status === "Inactive" ||
-        result.disconnection_status === "For Disconnection"
+        clientUpdateResult.status === "Inactive" ||
+        clientUpdateResult.disconnection_status === "For Disconnection"
       ) {
         await Client.findOneAndUpdate(
           { acc_num: data.acc_num },
@@ -554,8 +574,8 @@ module.exports.AddPayment = async (data) => {
         accountName: data.acc_name,
         address: data.address,
         paymentDate: data.p_date,
-        tendered: data.paymentAmount,
-        amountDue: data.paymentAmount, // Assume full payment for the installation fee
+        tendered: parseFloat(data.paymentAmount.toFixed(2)),
+        amountDue: parseFloat(data.paymentAmount.toFixed(2)), // Assume full payment for the installation fee
         change: 0, // No change expected
         balance: 0.0, // No remaining balance
         billNumbers: [], // No bill numbers for installation fee
