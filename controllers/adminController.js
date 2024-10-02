@@ -261,8 +261,7 @@ exports.getBillSummary = async (req, res) => {
     start.setUTCHours(0, 0, 0, 0); // Set sa simula ng araw
 
     // I-adjust ang endDate sa huling araw ng buwan
-    end.setUTCMonth(end.getUTCMonth() + 1); // Lumipat sa susunod na buwan
-    end.setUTCDate(0); // Set sa huling araw ng kasalukuyang buwan
+
     end.setUTCHours(23, 59, 59, 999); // Set sa dulo ng araw
     console.log("Filtering bills from:", start, "to:", end);
 

@@ -325,7 +325,6 @@ exports.GetForDisconnection = async () => {
   try {
     const ForDisconnect = await client.find({
       disconnection_status: "For Disconnection",
-      status: "Inactive",
     });
 
     return ForDisconnect; // Return the result

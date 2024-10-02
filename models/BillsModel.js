@@ -44,9 +44,7 @@ let billSchema = new mongoose.Schema({
     required: [true, "Consumption is required!"],
     min: [0, "Consumption cannot be negative"],
   },
-  dc_date: {
-    type: Date,
-  },
+
   currentBill: {
     type: Number,
     required: [true, "Current Bill is required!"],
@@ -113,6 +111,10 @@ let billSchema = new mongoose.Schema({
       message: "Payment date must be after or on the reading date!",
     },
   },
+  penaltyApplied: {
+    type: Boolean,
+    default: false,
+  }, // New field
 });
 
 // Automatically increment the billNumber field
