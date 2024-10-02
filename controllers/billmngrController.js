@@ -1,6 +1,7 @@
 const biller = require("../models/BillMngr");
 const bills = require("../models/BillsModel");
 const Rate = require("../models/ratesModel");
+const Logs = require("../models/LogsModel");
 const Client = require("../models/clientModel");
 const Payment = require("../models/payments");
 const exp = require("express");
@@ -61,244 +62,102 @@ module.exports.AddBill = async (data) => {
   const results = [];
 
   try {
+    // Process each bill in the batch
     for (const billData of data) {
-      const clientExists = await Client.findOne({
-        acc_num: billData.acc_num,
-        accountName: billData.accountName,
-      });
-
-      if (!clientExists) {
-        results.push({
-          error: `Client with account number ${billData.acc_num} and name ${billData.accountName} does not exist.`,
-        });
-        continue; // Skip to the next bill
-      }
-
-      let previousReading = 0;
-
-      // Find the latest bill of the client, if exists
-      const latestBill = await bills
-        .findOne({ acc_num: billData.acc_num })
-        .sort({ reading_date: -1 })
-        .exec();
-
-      // Assigning Amount to previous
-      if (latestBill) {
-        previousReading = latestBill.present_read || 0;
-      } else if (clientExists.initial_read) {
-        previousReading = clientExists.initial_read;
-      }
-
-      // Calculate consumption
-      const consumption = billData.present_read - previousReading;
-
-      // Ensure consumption is non-negative
-      if (consumption < 0) {
-        results.push({
-          error: `Invalid consumption: Present reading (${billData.present_read}) is less than previous reading (${previousReading}).`,
-        });
-        continue;
-      }
-
-      // Fetch rates based on classification and pipe size
-      const rateData = await Rate.findOne({
-        category: clientExists.client_type,
-        size: clientExists.pipe_size,
-      });
-
-      if (!rateData) {
-        results.push({
-          error: `No rate found for classification ${clientExists.client_type} and pipe size ${clientExists.pipe_size}.`,
-        });
-        continue; // Skip to the next bill
-      }
-
-      const minimumCharge = rateData.minimumCharge;
-      const commodityRates = rateData.commodityRates; // Assume this is an array of {range, rate}
-
-      console.log("Rate", rateData);
-      console.log("Minimum Charge", minimumCharge);
-      console.log("commodityRates", commodityRates);
-
-      let totalBillAmount = minimumCharge;
-      let remainingConsumption = consumption - 10; // First 10 cu.m. covered by minimum charge
-      console.log("remainingConsumption", remainingConsumption);
-      // Calculate commodity charges for remaining consumption
-      if (remainingConsumption > 0) {
-        let commodityCharge = 0;
-
-        // Loop through the commodity rates
-        for (const rate of rateData.commodityRates) {
-          const { rangeStart, rangeEnd, rate: ratePerCubicMeter } = rate;
-
-          // Determine the applicable consumption for this rate range
-          const applicableConsumption = Math.min(
-            remainingConsumption,
-            rangeEnd - rangeStart + 1
-          );
-
-          // Debugging logs to trace the values
-          console.log(`Rate Range: ${rangeStart} - ${rangeEnd}`);
-          console.log(`Remaining Consumption: ${remainingConsumption}`);
-          console.log(`Applicable Consumption: ${applicableConsumption}`);
-          console.log(`Rate per Cubic Meter: ${ratePerCubicMeter}`);
-
-          // Add the charge for this range to the total commodity charge
-          const rangeCharge = applicableConsumption * ratePerCubicMeter;
-          commodityCharge += rangeCharge;
-
-          // Log the charge calculated for this range
-          console.log(`Commodity Charge for this range: ${rangeCharge}`);
-          console.log(`Total Commodity Charge so far: ${commodityCharge}`);
-
-          // Decrease the remaining consumption
-          remainingConsumption -= applicableConsumption;
-
-          // Log the updated remaining consumption
-          console.log(`Updated Remaining Consumption: ${remainingConsumption}`);
-
-          // If all consumption has been accounted for, break out of the loop
-          if (remainingConsumption <= 0) {
-            console.log("No remaining consumption left. Exiting loop.");
-            break;
-          }
-        }
-
-        // Add the commodity charge to the total bill amount
-        totalBillAmount = parseFloat(
-          (parseFloat(totalBillAmount) + parseFloat(commodityCharge)).toFixed(2)
-        );
-
-        console.log("TotalBillAmount", totalBillAmount);
-      }
-
-      // Calculate due date, disconnect date, and penalties
-      const readingDate = new Date(billData.reading_date);
-      const dueDate = calculateDueDate(readingDate);
-      const disconnectDate = calculateDC(dueDate);
-      let penalty = 0;
-      let daysPastDue = 0;
-
-      const currentDate = new Date();
-      if (currentDate > dueDate) {
-        daysPastDue = Math.floor(
-          (currentDate - dueDate) / (1000 * 60 * 60 * 24)
-        );
-        penalty = calculateDailyPenalty(totalBillAmount, daysPastDue);
-        totalBillAmount += penalty;
-      }
-
-      // Check for any unpaid bills
-      const latestUnpaidBill = await bills
-        .findOne({
-          acc_num: billData.acc_num,
-          reading_date: { $lt: readingDate },
-          payment_status: { $in: ["Unpaid", "Partial"] },
-        })
-        .sort({ reading_date: -1 });
-
-      let arrears = 0;
-      if (latestUnpaidBill) {
-        arrears = latestUnpaidBill.totalDue;
-      }
-
-      // Additional fees
-      let additionalFees = 0;
-      if (clientExists.totalBalance > 0 && !latestBill) {
-        additionalFees = clientExists.totalBalance;
-      }
-
-      // Calculate total due amount
-      const totalDue =
-        parseFloat(totalBillAmount) +
-        parseFloat(arrears) +
-        parseFloat(additionalFees);
-
-      // Handle advance payment
-      let remainingAdvancePayment = clientExists.advancePayment || 0;
-      let newTotalBalance = parseFloat(totalDue).toFixed(2);
-
-      if (remainingAdvancePayment > 0) {
-        if (remainingAdvancePayment >= totalDue) {
-          remainingAdvancePayment -= totalDue;
-          newTotalBalance = 0;
-        } else {
-          newTotalBalance -= remainingAdvancePayment;
-          remainingAdvancePayment = 0;
-        }
-      }
-
-      // Create and save the new bill
-      const newBill = new bills({
-        acc_num: billData.acc_num,
-        reading_date: readingDate,
-        due_date: dueDate,
-        accountName: billData.accountName,
-        consumption: consumption,
-        dc_date: disconnectDate,
-        present_read: billData.present_read,
-        prev_read: previousReading,
-        category: billData.category,
-        currentBill: totalBillAmount,
-        arrears: arrears,
-        totalDue: newTotalBalance,
-        p_charge: penalty,
-        dayPastDueDate: daysPastDue,
-        others: billData.others,
-        remarks: billData.remarks,
-        payment_status: newTotalBalance === 0 ? "Paid" : "Unpaid",
-      });
-
-      const result = await newBill.save();
-      results.push(result);
-
-      const unpaidBills = await bills.countDocuments({
-        acc_num: String(billData.acc_num), // Ensures it's treated as a string
-        payment_status: "Unpaid",
-      });
-
-      console.log("UNPAID BILLS", unpaidBills);
-
-      await Client.findOneAndUpdate(
-        { acc_num: billData.acc_num },
-        {
-          totalBalance: newTotalBalance,
-          advancePayment: remainingAdvancePayment,
-          status: unpaidBills >= 3 ? "Inactive" : clientExists.status,
-          disconnection_status:
-            unpaidBills >= 3
-              ? "For Disconnection"
-              : clientExists.disconnection_status,
-        },
-        { new: true }
-      );
+      const result = await processSingleBill(billData); // Process each bill individually
+      results.push(result); // Push the result (either success or error) to results array
     }
 
     return {
       success: true,
-      message: "All bills added successfully",
+      message: "Batch processing completed",
       data: results,
     };
   } catch (err) {
-    return { error: `There was an error: ${err.message}` };
+    return { error: `There was an error processing the batch: ${err.message}` };
   }
 };
 
-function calculateDueDate(readingDate) {
-  const dueDate = new Date(readingDate);
-  dueDate.setDate(dueDate.getDate() + 16);
-  return dueDate;
-}
+async function processSingleBill(billData) {
+  try {
+    // Hanapin kung nage-exist ang client
+    const clientExists = await Client.findOne({
+      acc_num: billData.acc_num,
+      accountName: billData.accountName,
+    });
 
-function calculateDC(DUE_DATE) {
-  const DC_DATE = new Date(DUE_DATE);
-  DC_DATE.setDate(DC_DATE.getDate() + 7);
-  return DC_DATE;
-}
+    if (!clientExists) {
+      return {
+        error: `Client with account number ${billData.acc_num} and name ${billData.accountName} does not exist.`,
+      };
+    }
 
-function calculateDailyPenalty(totalAmount, daysPastDue) {
-  const dailyPenaltyRate = 0.01; // Example: 1% daily penalty
-  return totalAmount * dailyPenaltyRate * daysPastDue;
+    // Get the current date and the due date
+    const currentDate = new Date();
+    const dueDate = new Date(billData.due_date); // Updated to match new field
+
+    // Calculate the total due with penalty if the due date has passed
+    let totalDue = parseFloat(billData.totalDue);
+
+    // Check if the current date is past the due date
+    if (currentDate > dueDate) {
+      const penaltyCharge = 0.1 * totalDue; // Calculate 10% penalty
+      totalDue += penaltyCharge; // Add penalty to total due
+    }
+
+    // Calculate consumption
+    const consumption = billData.present_read - billData.prev_read;
+
+    // I-save ang bagong bill
+    const newBill = new bills({
+      acc_num: billData.acc_num,
+      reading_date: new Date(billData.reading_date),
+      due_date: dueDate,
+      accountName: billData.accountName,
+      present_read: billData.present_read,
+      prev_read: billData.prev_read || 0, // Optional previous reading
+      totalDue: totalDue, // Updated total amount due
+      arrears: billData.arrears,
+      payment_status: "Unpaid",
+      remarks: billData.remarks || "", // Optional remarks
+      consumption: consumption, // Added consumption field
+      category: billData.category || "", // Added category field
+      currentBill: totalDue, // Added currentBill field
+    });
+
+    const savedBill = await newBill.save();
+
+    // Update ang total balance ng client
+    const newTotalBalance =
+      parseFloat(clientExists.totalBalance || 0) + totalDue; // Use the updated totalDue
+
+    await Client.findOneAndUpdate(
+      { acc_num: billData.acc_num },
+      { totalBalance: newTotalBalance },
+      { new: true }
+    );
+
+    // Check for 3 unpaid bills
+    const unpaidBillsCount = await bills.countDocuments({
+      acc_num: billData.acc_num,
+      payment_status: "Unpaid",
+    });
+
+    // If the client has 3 or more unpaid bills, update status to "For Disconnection"
+    if (unpaidBillsCount >= 3) {
+      await Client.findOneAndUpdate(
+        { acc_num: billData.acc_num },
+        { disconnection_status: "For Disconnection", status: "Inactive" },
+        { new: true }
+      );
+    }
+
+    return savedBill;
+  } catch (err) {
+    return {
+      error: `Error processing bill for account ${billData.acc_num}: ${err.message}`,
+    };
+  }
 }
 
 module.exports.GetAllBills = async (data) => {
@@ -662,4 +521,48 @@ module.exports.getLatestBill = async (acc_num) => {
     prev_reading:
       latestBill.present_read || (client ? client.initial_reading : null), // Gamitin ang initial_reading kung walang present_read
   };
+};
+
+module.exports.adjustbill = async (billId, adjustmentData, adjustedBy) => {
+  try {
+    console.log(`Adjusting bill with ID: ${billId}`);
+    console.log("Adjustment data received:", adjustmentData);
+
+    // Find the bill by ID
+    const bill = await bills.findById(billId);
+    if (!bill) {
+      console.error(`Bill with ID ${billId} not found.`);
+      throw new Error("Bill not found");
+    }
+    console.log(`Bill found: ${bill}`);
+
+    // Track the changes made to the bill
+    let adjustedFields = {};
+
+    // Update the bill with the provided adjustment data
+    Object.keys(adjustmentData).forEach((key) => {
+      if (bill[key] !== adjustmentData[key]) {
+        // Log only if the field is changed
+        adjustedFields[key] = {
+          previousValue: bill[key],
+          newValue: adjustmentData[key],
+        };
+        bill[key] = adjustmentData[key]; // Dynamically updating the bill
+      }
+    });
+
+    if (Object.keys(adjustedFields).length === 0) {
+      console.log("No changes made to the bill.");
+      throw new Error("No fields were adjusted");
+    }
+
+    // Save the updated bill
+    const updatedBill = await bill.save();
+    console.log("Bill successfully updated:", updatedBill);
+
+    return { success: true, data: updatedBill };
+  } catch (error) {
+    console.error(`Error adjusting bill with ID ${billId}: ${error.message}`);
+    throw new Error(`Failed to adjust bill: ${error.message}`);
+  }
 };

@@ -253,10 +253,17 @@ exports.getBillSummary = async (req, res) => {
       return { message: "Start date and end date are required." };
     }
 
-    // Parse dates
     const start = new Date(startDate);
     const end = new Date(endDate);
 
+    // I-adjust ang startDate sa unang araw ng buwan
+    start.setUTCDate(1); // Set sa 1st day ng buwan
+    start.setUTCHours(0, 0, 0, 0); // Set sa simula ng araw
+
+    // I-adjust ang endDate sa huling araw ng buwan
+    end.setUTCMonth(end.getUTCMonth() + 1); // Lumipat sa susunod na buwan
+    end.setUTCDate(0); // Set sa huling araw ng kasalukuyang buwan
+    end.setUTCHours(23, 59, 59, 999); // Set sa dulo ng araw
     console.log("Filtering bills from:", start, "to:", end);
 
     // Perform the aggregation
@@ -361,23 +368,20 @@ exports.updateRate = async (req, res) => {
 };
 exports.getConsumerCollectionSummary = async (req, res) => {
   try {
-    const { startDate, endDate } = req; // Use req.query for query parameters
+    // Kunin ang startDate at endDate mula sa query
+    const { startDate, endDate } = req;
 
-    // Parse and adjust the start and end dates to cover the entire month
+    // Parse ang mga petsa
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    // Ensure the end date covers the whole month
-    end.setMonth(end.getMonth() + 1); // Move to the next month
-    end.setDate(0); // Set to the last day of the current month
+    start.setUTCDate(1); // Set sa 1st day ng buwan
+    start.setUTCHours(0, 0, 0, 0); // Set sa simula ng araw
 
-    // Log the dates for debugging
-    console.log("Start Date:", start);
-    console.log("End Date:", end);
+    end.setUTCHours(23, 59, 59, 999); // Set sa dulo ng araw
+    console.log("Filtering bills from:", start, "to:", end);
 
-    // Aggregate the data based on the adjusted start and end dates
     const collectionSummary = await payments.aggregate([
-      // Use the payments collection
       {
         $match: {
           paymentDate: { $gte: start, $lte: end },
@@ -389,10 +393,10 @@ exports.getConsumerCollectionSummary = async (req, res) => {
             acc_num: "$acc_num",
             accountName: "$accountName",
           },
-          totalBilled: { $sum: "$amountDue" }, // Total billed is amount due
-          totalCollected: { $sum: { $subtract: ["$tendered", "$change"] } }, // Total collected
-          outstanding: { $sum: "$balance" }, // Outstanding balance
-          lastPaymentDate: { $max: "$paymentDate" }, // Last payment date
+          totalBilled: { $sum: "$amountDue" },
+          totalCollected: { $sum: { $subtract: ["$tendered", "$change"] } },
+          outstanding: { $sum: "$balance" },
+          lastPaymentDate: { $max: "$paymentDate" },
         },
       },
       {
@@ -409,8 +413,7 @@ exports.getConsumerCollectionSummary = async (req, res) => {
       { $sort: { accountName: 1 } },
     ]);
 
-    // Return the result
-    return collectionSummary;
+    return collectionSummary; // Ibalik ang summary bilang response
   } catch (error) {
     console.error("Error fetching consumer collection summary:", error);
     return res.status(500).json({

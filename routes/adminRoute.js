@@ -43,7 +43,7 @@ route.post("/addRates", (req, res) => {
 route.post("/newclient", (req, res) => {
   console.log("Adding New Client");
   console.log(req.body);
-  customerctrl.CreateClientsBatch(req.body).then((result) => {
+  customerctrl.CreateClient(req.body).then((result) => {
     console.log("Result is", result);
     res.send(result);
   });

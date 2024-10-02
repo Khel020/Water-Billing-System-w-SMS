@@ -9,11 +9,32 @@ const pnv = process.env;
 
 //TODO: Creating Client/ Add Client
 exports.CreateClient = async (data) => {
+  const results = [];
   try {
-    console.log("Data received:", data); // Log the data received
+    // Process each client in the batch
+    for (const client of data) {
+      const result = await CreateClient(client); // Process each client individually
+      results.push(result); // Push the result (either success or error) to results array
+    }
 
+    return {
+      success: true,
+      message: "Batch processing completed",
+      data: results,
+    };
+  } catch (err) {
+    return { error: `There was an error processing the batch: ${err.message}` };
+  }
+};
+
+// New function to handle single client creation request
+async function CreateClient(clientData) {
+  try {
     const existingClient = await client.findOne({
-      $or: [{ acc_num: data.accountNumber }, { accountName: data.accountName }],
+      $or: [
+        { acc_num: clientData.accountNumber },
+        { accountName: clientData.accountName },
+      ],
     });
 
     if (existingClient) {
@@ -23,65 +44,38 @@ exports.CreateClient = async (data) => {
       };
     }
 
-    const totalBalance = parseFloat(data.installation_fee) || 0; // Use fallback value
+    const totalBalance = parseFloat(clientData.installation_fee) || 0; // Use fallback value if undefined or null
 
-    let NewClient = new client({
-      acc_num: data.accountNumber,
-      accountName: data.accountName,
-      meter_num: data.meter_num,
-      pipe_size: data.pipe_size,
-      meter_brand: data.meterBrand,
-      contact: data.contact,
-      initial_read: data.initial_read,
-      c_address: data.address,
-      client_type: data.client_type,
-      install_date: data.install_date,
-      activation_date: data.activationDate,
-      install_fee: data.installation_fee,
-      meter_installer: data.meter_installer,
-      zone: data.zone,
-      sequenceNumber: data.seq_num,
+    let newClient = new client({
+      acc_num: clientData.accountNumber,
+      accountName: clientData.accountName,
+      meter_num: clientData.meter_num,
+      pipe_size: clientData.pipe_size,
+      meter_brand: clientData.meterBrand,
+      contact: clientData.contact,
+      initial_read: clientData.initial_read,
+      c_address: clientData.address,
+      client_type: clientData.client_type,
+      install_date: clientData.install_date,
+      activation_date: clientData.activationDate,
+      install_fee: clientData.installation_fee,
+      meter_installer: clientData.meter_installer,
+      zone: clientData.zone,
+      sequenceNumber: clientData.seq_num,
       totalBalance: totalBalance,
     });
 
-    const result = await NewClient.save();
+    const result = await newClient.save();
 
     return {
       success: true,
       result: result,
-      message: "Client Successfully Created",
+      message: "Client successfully created",
     };
   } catch (err) {
-    console.error(err);
-    return { error: "Failed to create client" };
+    return { error: `Error creating client: ${err.message}` }; // Proper error handling
   }
-};
-
-// New function to handle multiple client creation requests
-exports.CreateClientsBatch = async (clientDataArray) => {
-  const results = []; // Array to hold the results of each client creation
-  const errors = []; // Array to hold any errors that occur
-
-  for (const data of clientDataArray) {
-    try {
-      const result = await exports.CreateClient(data);
-      results.push(result); // Add the result to the results array
-    } catch (error) {
-      console.error("Error creating client:", error);
-      errors.push({
-        accountNumber: data.accountNumber,
-        error:
-          error.error || "Failed to create client due to an unexpected error.",
-      });
-    }
-  }
-
-  return {
-    success: errors.length === 0, // Return true if no errors occurred
-    results: results,
-    errors: errors.length > 0 ? errors : null, // Include errors if any
-  };
-};
+}
 
 //TODO: Get all the client
 exports.GetAllClients = async () => {

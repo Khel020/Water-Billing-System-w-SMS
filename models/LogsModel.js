@@ -1,19 +1,24 @@
 const mongoose = require("mongoose");
 
-let LogSchema = new mongoose.Schema({
-    //need ID admin ID
-    log_type:{
-        type: String,
-        required: [true, "Required"]
-    },
-    log_descript:{
-        type: String,
-        required: [true, "Required"]
-    },
-    log_date:{
-        type: Date,
-        required: [true, "Required"]
-    },
-})
-const LOGS = mongoose.model("logs", LogSchema);
-module.exports = LOGS;
+const logSchema = new mongoose.Schema({
+  action: {
+    type: String,
+    required: true,
+  },
+  details: {
+    type: String,
+    required: true,
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User", // Kung gumagamit ka ng user model para sa authentication
+    required: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+const Log = mongoose.model("logs", logSchema);
+module.exports = Log;

@@ -151,3 +151,26 @@ route.get("/withBalance", (req, res) => {
     res.json(result);
   });
 });
+route.put("/adjustbill/:id", auth.BillerOnly, async (req, res) => {
+  console.log("Adjusting bill using ID");
+
+  const billId = req.params.id;
+  const adjustmentData = req.body;
+
+  console.log("Bill ID:", billId);
+  console.log("Adjustment Data:", adjustmentData);
+
+  try {
+    // Assuming biller.adjustbill is a function that returns a promise
+    const result = await biller.adjustbill(billId, adjustmentData);
+    console.log("Updated Bill:", result);
+
+    // Send the response only once after the operation is complete
+    res.json(result);
+  } catch (error) {
+    console.error("Error adjusting bill:", error.message);
+
+    // Send the error response only once
+    res.status(500).json({ error: error.message });
+  }
+});
