@@ -1,7 +1,10 @@
 const mongoose = require("mongoose");
 const AutoIncrement = require("mongoose-sequence")(mongoose);
 let Payments = new mongoose.Schema({
-  //make sure meron kang advance payment dito
+  processBy: {
+    type: String,
+    require: true,
+  },
   billNo: [Number],
   acc_num: {
     type: String,
@@ -27,7 +30,7 @@ let Payments = new mongoose.Schema({
   },
   paymentDate: {
     type: Date,
-    require: [true, "Payment Date Required"],
+    required: [true, "Payment Date Required"],
   },
   amountDue: {
     type: Number,

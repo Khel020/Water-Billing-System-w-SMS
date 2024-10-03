@@ -441,6 +441,11 @@ module.exports.calculateChange = async (data) => {
 
 module.exports.AddPayment = async (data) => {
   const results = [];
+  const account = data.processedBy; // Make sure you're getting the username correctly
+  const role = data.role;
+  console.log("DATA", data);
+  console.log("account", account);
+  console.log("DATE", data.p_date);
   let remainingPayment = parseFloat(data.tendered); // Initialize with the full payment amount
   let paymentRecord = null; // To store the payment record
   const billNumbers = []; // To store the list of bill numbers
@@ -456,7 +461,7 @@ module.exports.AddPayment = async (data) => {
       // Create a single payment record
       paymentRecord = new Payment({
         acc_num: data.acc_num,
-        accountName: data.acc_name,
+        accountName: data.acc_name, // Adjusted for consistency
         address: data.address,
         paymentDate: data.p_date,
         arrears: data.arrears,
@@ -465,6 +470,7 @@ module.exports.AddPayment = async (data) => {
         amountDue: 0, // This will be updated to the total amount due
         change: 0, // To be calculated
         balance: 0, // To be calculated
+        processBy: account,
       });
 
       let totalDue = 0; // Total amount due for all bills paid
@@ -521,6 +527,16 @@ module.exports.AddPayment = async (data) => {
       const paymentResult = await paymentRecord.save();
       results.push({ paymentResult, OR_NUM: paymentResult.OR_NUM });
 
+      // Log the successful payment
+      const logEntry = new Logs({
+        action: "Payment Processed",
+        details: `Payment processed for account ${data.acc_num}.`,
+        accountName: account,
+        role: role,
+      });
+
+      await logEntry.save(); // Save the log entry to the database
+
       // Update the client's total balance and advance payment (if applicable)
       const clientUpdateResult = await Client.findOneAndUpdate(
         { acc_num: data.acc_num },
@@ -555,18 +571,28 @@ module.exports.AddPayment = async (data) => {
       // If no bills exist, assume this is an installation fee payment
       const newPayment = new Payment({
         acc_num: data.acc_num,
-        accountName: data.acc_name,
+        accountName: data.acc_name, // Adjusted for consistency
         address: data.address,
-        paymentDate: data.p_date,
+        paymentDate: data.p_date, // Convert string to Date object
         tendered: parseFloat(data.tendered),
         amountDue: parseFloat(data.tendered), // Assume full payment for the installation fee
         change: 0, // No change expected
         balance: 0.0, // No remaining balance
-        billNumbers: [], // No bill numbers for installation fee
+        billNo: [], // No bill numbers for installation fee
       });
 
       const paymentResult = await newPayment.save();
       results.push({ paymentResult, OR_NUM: paymentResult.OR_NUM });
+
+      // Log the successful installation payment
+      const logEntry = new Logs({
+        action: "Installation Fee Processed",
+        details: `Installation fee payment processed for account ${data.acc_num}.`,
+        accountName: account,
+        role: role,
+      });
+
+      await logEntry.save(); // Save the log entry to the database
 
       // Update the client's balance to 0 since there are no bills
       await Client.findOneAndUpdate(

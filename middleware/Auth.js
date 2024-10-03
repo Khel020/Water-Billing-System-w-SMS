@@ -90,11 +90,41 @@ module.exports.AdminOnly = (req, res, next) => {
   next();
 };
 
-// module.exports.authorizeRoles = (...roles) => {
-//   return (req, res, next) => {
-//     if (!roles.includes(req.user.usertype)) {
-//       return res.status(403).json({ error: "Forbidden" });
-//     }
-//     next();
-//   };
-// };
+module.exports.getUsernameFromToken = (req, res, next) => {
+  // Check if authorization header is present
+  if (req.headers.authorization === undefined) {
+    return res.status(401).json({ error: "Invalid Credentials" });
+  }
+
+  const authHead = req.headers.authorization;
+  const token = authHead.split(" ");
+
+  // Check if the token type is Bearer
+  if (token[0] !== "Bearer") {
+    return res.status(401).json({ error: "Invalid Credentials" });
+  }
+
+  try {
+    const decodedToken = jwt.verify(token[1], pnv.TOKEN_SECRET);
+
+    console.log("Token", decodedToken);
+    // Checking if the token is expired
+    if (Math.floor(Date.now() / 1000) >= decodedToken.exp) {
+      // Use decodedToken.exp
+      return res
+        .status(401)
+        .json({ error: "Credentials Expired, Please Login" });
+    }
+
+    // If the token is valid, store the username in req object
+    req.username = decodedToken.accountName; // Store username
+    req.role = decodedToken.type;
+    console.log("USERNAME", req.username); // Optional logging
+
+    // Proceed to the next middleware or route handler
+    next();
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    return res.status(401).json({ error: "Invalid Token" });
+  }
+};

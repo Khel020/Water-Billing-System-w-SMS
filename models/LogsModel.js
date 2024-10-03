@@ -9,9 +9,12 @@ const logSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User", // Kung gumagamit ka ng user model para sa authentication
+  accountName: {
+    type: String,
+    required: true,
+  },
+  role: {
+    type: String,
     required: true,
   },
   createdAt: {

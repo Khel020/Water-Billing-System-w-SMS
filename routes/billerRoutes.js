@@ -54,7 +54,7 @@ route.get("/getBillbyBillNum", (req, res) => {
       res.status(500).send({ error: "Failed to fetch bill" });
     });
 });
-route.get("/findBillPay/:account", async (req, res) => {
+route.get("/findBillPay/:account", auth.BillerOnly, async (req, res) => {
   try {
     console.log("Finding bill for payment...", req.params.account);
 
@@ -85,14 +85,44 @@ route.get("/status", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
-route.post("/newPayment", (req, res) => {
-  console.log("New Payment Transaction");
-  console.log("REQ BODY", req.body);
-  biller.AddPayment(req.body).then((result) => {
-    console.log("Result", result);
-    res.send(result);
-  });
-});
+route.post(
+  "/newPayment",
+  auth.BillerOnly,
+  auth.getUsernameFromToken,
+  (req, res) => {
+    console.log("New Payment Transaction");
+    console.log("REQ BODY", req.body);
+
+    // Access the username extracted by the middleware
+    const username = req.username; // Retrieve username from the req object
+    const usertype = req.role;
+    // Prepare the payment data, including the username
+    const paymentData = {
+      acc_num: req.body.acc_num,
+      acc_name: req.body.acc_name,
+      address: req.body.address,
+      p_date: req.body.p_date,
+      arrears: req.body.arrears,
+      tendered: req.body.tendered,
+      advTotalAmount: req.body.advTotalAmount, // Add any additional fields as necessary
+      processedBy: username, // Include the username here
+      role: usertype,
+    };
+
+    // Call the AddPayment method with the prepared paymentData
+    biller
+      .AddPayment(paymentData)
+      .then((result) => {
+        console.log("Result", result);
+        res.send(result);
+      })
+      .catch((error) => {
+        console.error("Error processing payment:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      });
+  }
+);
+
 route.post("/calculateChange", (req, res) => {
   console.log("Calculating Charge:");
   console.log(req.body);

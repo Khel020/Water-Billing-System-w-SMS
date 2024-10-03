@@ -79,7 +79,7 @@ module.exports.login = async (req, res) => {
           else if (t === "billmngr") {
             returnbody.token = makeToken({
               user_id: user._id,
-              accountName: user.fname + " " + user.lastname,
+              accountName: user.name,
               type: t,
               IsBiller: user.isBiller,
             });
@@ -93,7 +93,7 @@ module.exports.login = async (req, res) => {
           else if (t === "admin") {
             returnbody.token = makeToken({
               user_id: user._id,
-              accountName: user.fname + "" + user.lastname,
+              accountName: user.name,
               type: t,
               isAdmin: user.isAdmin,
             });

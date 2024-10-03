@@ -198,3 +198,9 @@ route.put("/updateRate/:id", (req, res) => {
   console.log("Updating Rates");
   controller.updateRate(req, res);
 });
+route.get("/logs", (req, res) => {
+  console.log("Getting Logs");
+  controller.GetLogs().then((result) => {
+    res.send(result);
+  });
+});

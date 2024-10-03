@@ -3,6 +3,7 @@ const users = require("../models/usersModel.js");
 const biller = require("../models/BillMngr.js");
 const payments = require("../models/payments.js");
 const bills = require("../models/BillsModel.js");
+const Logs = require("../models/LogsModel.js");
 const Rates = require("../models/ratesModel.js");
 const exp = require("express");
 const mng = require("mongoose");
@@ -419,5 +420,21 @@ exports.getConsumerCollectionSummary = async (req, res) => {
       message: "Failed to fetch collection summary",
       error: error.message,
     });
+  }
+};
+exports.GetLogs = async () => {
+  try {
+    const logs = await Logs.find();
+    console.log("logs", logs);
+    return {
+      success: true,
+      data: logs,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Server Error",
+      error: error.message,
+    };
   }
 };
