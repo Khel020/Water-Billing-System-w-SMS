@@ -1,6 +1,7 @@
 const admin = require("../models/adminModel.js");
 const users = require("../models/usersModel.js");
 const biller = require("../models/BillMngr.js");
+const Client = require("../models/clientModel.js");
 const payments = require("../models/payments.js");
 const bills = require("../models/BillsModel.js");
 const Logs = require("../models/LogsModel.js");
@@ -438,3 +439,188 @@ exports.GetLogs = async () => {
     };
   }
 };
+// Controller to handle uploading bills
+module.exports.UploadBills = async (data) => {
+  const errors = []; // Array to store error messages
+
+  console.log("Data:", data);
+
+  try {
+    // Validate the input data
+    if (!Array.isArray(data)) {
+      return { error: "Data must be an array of bills." };
+    }
+
+    // First pass: Validate all bills before saving
+    for (const billData of data) {
+      const validationError = await validateSingleBill(billData); // Validate each bill individually
+      if (validationError) {
+        errors.push(validationError); // Collect validation errors
+      }
+    }
+
+    // If there are errors, return them and do not save any bills
+    if (errors.length > 0) {
+      return {
+        success: false,
+        message: "There were validation errors in some bills.",
+        errors: errors,
+      };
+    }
+
+    // Second pass: Process and save all bills if validation passed
+    const results = [];
+    for (const billData of data) {
+      const result = await processSingleBill(billData);
+      results.push(result.bill); // If successful, add to the results
+    }
+
+    return {
+      success: true,
+      message: "Batch processing completed.",
+      data: results,
+    };
+  } catch (err) {
+    console.error("Batch processing error:", err); // Log error for debugging
+    return { error: `There was an error processing the batch: ${err.message}` };
+  }
+};
+
+// Function to validate a single bill
+async function validateSingleBill(billData) {
+  // Array to store missing fields
+  const missingFields = [];
+
+  // Check for required fields
+  if (!billData.acc_num) missingFields.push("acc_num");
+  if (!billData.accountName) missingFields.push("accountName");
+  if (!billData.due_date) missingFields.push("due_date");
+  if (!billData.present_read) missingFields.push("present_read");
+  if (
+    billData.prev_read === undefined ||
+    billData.prev_read === null ||
+    billData.prev_read === ""
+  ) {
+    missingFields.push("prev_read");
+  }
+  if (!billData.totalDue) missingFields.push("totalDue");
+  if (!billData.reading_date) missingFields.push("reading_date");
+  if (!billData.payment_status) missingFields.push("payment_status");
+  if (!billData.consumption) missingFields.push("consumption");
+  if (!billData.category) missingFields.push("category");
+  if (!billData.currentBill) missingFields.push("currentBill");
+
+  // If any required fields are missing, return an error with the list of missing fields
+  if (missingFields.length > 0) {
+    return `Account ${
+      billData.acc_num || "Unknown"
+    }: Missing required fields: ${missingFields.join(", ")}.`;
+  }
+
+  // Check if client exists
+  const clientExists = await Client.findOne({
+    acc_num: billData.acc_num,
+    accountName: billData.accountName,
+  });
+
+  if (!clientExists) {
+    return `Client with account number ${billData.acc_num} and name ${billData.accountName} does not exist.`;
+  }
+
+  // Check if a bill with the same account number, reading date, and due date already exists (to prevent duplicates)
+  const billExists = await bills.findOne({
+    acc_num: billData.acc_num,
+    reading_date: new Date(billData.reading_date),
+    due_date: new Date(billData.due_date),
+  });
+
+  if (billExists) {
+    return `A bill for account number ${billData.acc_num} with the same reading date and due date already exists.`;
+  }
+
+  // No validation errors
+  return null;
+}
+
+// Function to process and save a single bill (after validation)
+async function processSingleBill(billData) {
+  try {
+    // Get the current date and the due date
+    const currentDate = new Date();
+    const dueDate = new Date(billData.due_date); // Ensure correct format
+
+    // Calculate the total due with penalty if the due date has passed
+    let totalDue = parseFloat(billData.totalDue);
+
+    // Check if the current date is past the due date
+    if (currentDate > dueDate) {
+      const penaltyCharge = 0.1 * totalDue; // Calculate 10% penalty
+      totalDue += penaltyCharge; // Add penalty to total due
+    }
+
+    // Calculate consumption
+    const consumption = billData.present_read - billData.prev_read || 0;
+
+    // Create a new bill entry
+    const newBill = new bills({
+      acc_num: billData.acc_num,
+      reading_date: new Date(billData.reading_date),
+      due_date: dueDate,
+      accountName: billData.accountName,
+      present_read: billData.present_read,
+      prev_read: billData.prev_read || 0, // Optional previous reading
+      totalDue: totalDue, // Updated total amount due
+      arrears: billData.arrears || 0,
+      payment_status: "Unpaid",
+      remarks: billData.remarks || "", // Optional remarks
+      consumption: consumption, // Added consumption field
+      category: billData.category || "", // Added category field
+      currentBill: totalDue, // Added currentBill field
+    });
+
+    const savedBill = await newBill.save();
+
+    // Update the client's total balance
+    const clientExists = await Client.findOne({
+      acc_num: billData.acc_num,
+    });
+
+    const newTotalBalance =
+      parseFloat(clientExists.totalBalance || 0) + totalDue; // Use the updated totalDue
+
+    await Client.findOneAndUpdate(
+      { acc_num: billData.acc_num },
+      { totalBalance: newTotalBalance },
+      { new: true }
+    );
+
+    // Check for 3 unpaid bills
+    const unpaidBillsCount = await bills.countDocuments({
+      acc_num: billData.acc_num,
+      payment_status: "Unpaid",
+    });
+
+    // If the client has 3 or more unpaid bills, update status to "For Disconnection"
+    if (unpaidBillsCount >= 3) {
+      await Client.findOneAndUpdate(
+        { acc_num: billData.acc_num },
+        { disconnection_status: "For Disconnection", status: "Inactive" },
+        { new: true }
+      );
+    }
+
+    // Return a consistent success structure
+    return {
+      success: true,
+      bill: savedBill, // Include the saved bill information
+    };
+  } catch (err) {
+    console.error(
+      `Error processing bill for account ${billData.acc_num}:`,
+      err
+    ); // Log error
+    return {
+      error: `Error processing bill for account ${billData.acc_num}: ${err.message}`,
+    };
+  }
+}

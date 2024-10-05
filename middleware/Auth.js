@@ -1,10 +1,14 @@
-const exp = require("express");
-const mng = require("mongoose");
+const express = require("express");
+const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
-const env = require("dotenv").config();
-const route = exp.Router();
-const BCRYPT = require("bcrypt");
+const dotenv = require("dotenv").config();
+const bcrypt = require("bcrypt");
+
+const path = require("path");
+const route = express.Router();
 const pnv = process.env;
+
+// Middleware and authentication logic (same as earlier)
 
 module.exports.tokenCheck = (req, res, next) => {
   if (req.headers.authorization === undefined) {
