@@ -3,9 +3,6 @@ const route = express.Router();
 const controller = require("../controllers/newLogin");
 
 route.post("/newLogin", (req, res) => {
-  // if (typeof username !== "string" || typeof password !== "string") {
-  //   return res.status(400).json({ message: "Invalid input types" });
-  // }
   console.log("Logging in...");
   console.log(req.body);
   controller

@@ -62,6 +62,7 @@ async function CreateClient(clientData) {
       meter_installer: clientData.meter_installer,
       zone: clientData.zone,
       sequenceNumber: clientData.seq_num,
+      dateCreated: clientData.dateCreated,
       totalBalance: totalBalance,
     });
 
@@ -177,18 +178,12 @@ exports.ConsumersWithBill = async () => {
           ])
           .exec();
 
-        let last_billDate = null;
-
-        if (billDetails.length > 0) {
-          const result = billDetails[0];
-          last_billDate = result.last_billDate || null;
-        }
+        const last_billDate =
+          billDetails.length > 0 ? billDetails[0].last_billDate : null;
 
         const updatedClient = await client.findOneAndUpdate(
           { acc_num },
-          {
-            last_billDate: last_billDate,
-          },
+          { last_billDate },
           { new: true }
         );
 
@@ -202,14 +197,37 @@ exports.ConsumersWithBill = async () => {
         (client) => !billAccNumbers.includes(client.acc_num)
       );
 
-      return [...updatedClients, ...clientsWithoutBills]; // Return all clients, updated and non-updated
+      // Combine both lists and sort
+      return [...clientsWithoutBills, ...updatedClients].sort(sortClients);
     } else {
-      return allClients; // If no bills exist, return all clients as is
+      // If no bills exist, just sort all clients by status and dateCreated
+      return allClients.sort(sortClients);
     }
   } catch (error) {
     console.error("Error in ConsumersWithBill:", error);
     throw new Error("Internal Server Error");
   }
+};
+
+// Sorting function based on status and dateCreated
+const sortClients = (a, b) => {
+  // Define sorting priority for statuses
+  const STATUS_PRIORITY = {
+    inactive: 1, // Highest priority
+    pending: 2, // Middle priority
+    active: 3, // Lowest priority
+  };
+
+  const aStatusPriority = STATUS_PRIORITY[a.status] || 4; // Default to lowest priority if status is unknown
+  const bStatusPriority = STATUS_PRIORITY[b.status] || 4;
+
+  // Sort by status priority (inactive -> pending -> active)
+  if (aStatusPriority !== bStatusPriority) {
+    return aStatusPriority - bStatusPriority;
+  }
+
+  // If statuses are the same (i.e., both active), sort by dateCreated (newest first)
+  return new Date(b.dateCreated) - new Date(a.dateCreated);
 };
 
 exports.GetTotalClients = async () => {

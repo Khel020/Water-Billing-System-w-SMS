@@ -403,7 +403,7 @@ module.exports.findBillsPayment = async (account) => {
 module.exports.calculateChange = async (data) => {
   try {
     // Validate input data
-    if (!data.acc_num || !data.paymentAmount) {
+    if (!data.acc_num || !data.tendered) {
       return { success: false, message: "Invalid input data" };
     }
 
@@ -414,9 +414,9 @@ module.exports.calculateChange = async (data) => {
       return { success: false, message: "Client not found" };
     }
 
-    const newBalance = parseFloat(
-      client.totalBalance - data.paymentAmount
-    ).toFixed(2);
+    const newBalance = parseFloat(client.totalBalance - data.tendered).toFixed(
+      2
+    );
     let change = 0;
 
     if (newBalance < 0) {

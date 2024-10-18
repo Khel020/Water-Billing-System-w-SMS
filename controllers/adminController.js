@@ -1,4 +1,5 @@
 const admin = require("../models/adminModel.js");
+const dataEntry = require("../models/dataEntry.js");
 const users = require("../models/usersModel.js");
 const biller = require("../models/BillMngr.js");
 const Client = require("../models/clientModel.js");
@@ -39,6 +40,47 @@ exports.CreateAdmin = async (data) => {
     newAdmin.address = data.address;
     newAdmin.dateCreated = new Date();
     return newAdmin
+      .save()
+      .then((result) => {
+        if (result) {
+          return { success: true, message: "Admin already saved" };
+        }
+      })
+      .catch((err) => {
+        return { success: false, error: "There is an error" + err };
+      });
+  }
+};
+exports.CreateDataEntry = async (data) => {
+  const account = await dataEntry.findOne({
+    $or: [
+      { username: data.username },
+      { email: data.email },
+      { contact: data.contact },
+    ],
+  });
+  if (account) {
+    const errors = {};
+    if (account.username === data.username) {
+      errors.acc_name = "Username Name is already taken.";
+    }
+    if (account.email === data.email) {
+      errors.email = "Email is already taken.";
+    }
+    if (account.contact === data.contact) {
+      errors.acc_name = "Contact is already taken.";
+    }
+    return { success: false, errors };
+  } else {
+    let newDataEntry = new dataEntry();
+    newDataEntry.username = data.username;
+    newDataEntry.password = passHash(data.password);
+    newDataEntry.contact = data.contact;
+    newDataEntry.name = `${data.fname} ${data.lastname}`;
+    newDataEntry.email = data.email;
+    newDataEntry.address = data.address;
+    newDataEntry.dateCreated = new Date();
+    return newDataEntry
       .save()
       .then((result) => {
         if (result) {
@@ -97,7 +139,9 @@ exports.GetAllUsers = async (req, res) => {
     const usersData = await users.find({ isArchive: { $ne: true } }).exec();
     const billerData = await biller.find({ isArchive: { $ne: true } }).exec();
     const adminData = await admin.find({ isArchive: { $ne: true } }).exec();
-
+    const dataEntryData = await dataEntry
+      .find({ isArchive: { $ne: true } })
+      .exec();
     // Add a role identifier to each record for easy differentiation
     const usersWithRole = usersData.map((user) => ({
       ...user.toObject(), // Convert Mongoose documents to plain objects
@@ -113,10 +157,20 @@ exports.GetAllUsers = async (req, res) => {
       ...admin.toObject(),
       role: "admin",
     }));
+    const datEntrywithRole = dataEntryData.map((dataEntry) => ({
+      ...dataEntry.toObject(),
+      role: "data entry",
+    }));
 
     // Combine all the data into one array
-    const allUsers = [...usersWithRole, ...billersWithRole, ...adminsWithRole];
+    const allUsers = [
+      ...usersWithRole,
+      ...billersWithRole,
+      ...adminsWithRole,
+      ...datEntrywithRole,
+    ];
 
+    console.log("All Users", allUsers);
     // Create a properly structured response object
     const responseObject = {
       success: true,

@@ -49,7 +49,14 @@ route.post("/newclient", (req, res) => {
     res.send(result);
   });
 });
-
+route.post("/addDataEntry", (req, res) => {
+  console.log("Adding New Client");
+  console.log(req.body);
+  controller.CreateDataEntry(req.body).then((result) => {
+    console.log("Result is", result);
+    res.send(result);
+  });
+});
 route.put("/editClient", (req, res) => {
   console.log("Updating Client");
   console.log(req.body);
@@ -176,7 +183,6 @@ route.get("/billSummary/", async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 });
-
 route.post("/update_pendingStatus", async (req, res) => {
   try {
     console.log("Updating pending status", req.body);

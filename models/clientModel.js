@@ -105,6 +105,10 @@ let clientSchema = new mongoose.Schema({
   unpaidBills: {
     type: Number,
   },
+  dateCreated: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 const CLIENT = mongoose.model("consumers", clientSchema);
