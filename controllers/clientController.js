@@ -154,14 +154,14 @@ exports.GetClientsByAccNum = async (data) => {
     res.status(500).json({ message: error.message });
   }
 };
+// Function to get sorted clients with or without bills
 exports.ConsumersWithBill = async () => {
   try {
-    const updatedClients = [];
-
-    // Get all clients
     const allClients = await client.find({}).exec();
-    // Get distinct account numbers from the bills collection
+
     const billAccNumbers = await bill.distinct("acc_num").exec();
+
+    const updatedClients = [];
 
     if (billAccNumbers && billAccNumbers.length > 0) {
       for (const acc_num of billAccNumbers) {
@@ -178,8 +178,13 @@ exports.ConsumersWithBill = async () => {
           ])
           .exec();
 
-        const last_billDate =
-          billDetails.length > 0 ? billDetails[0].last_billDate : null;
+        let last_billDate = null;
+        if (billDetails.length > 0) {
+          const result = billDetails[0];
+          last_billDate = result.last_billDate || null;
+        } else {
+          console.log(`No bills found for account number: ${acc_num}`);
+        }
 
         const updatedClient = await client.findOneAndUpdate(
           { acc_num },
@@ -192,16 +197,63 @@ exports.ConsumersWithBill = async () => {
         }
       }
 
-      // Combine updated clients with those who don't have bills
       const clientsWithoutBills = allClients.filter(
         (client) => !billAccNumbers.includes(client.acc_num)
       );
 
-      // Combine both lists and sort
-      return [...clientsWithoutBills, ...updatedClients].sort(sortClients);
+      const allClientsWithBills = [...updatedClients, ...clientsWithoutBills];
+
+      const sortedClients = allClientsWithBills.sort((a, b) => {
+        const statusOrder = { Inactive: 1, Pending: 2, Active: 3 };
+
+        const aStatusPriority = statusOrder[a.status];
+        const bStatusPriority = statusOrder[b.status];
+
+        // Sort by status priority first
+        if (aStatusPriority !== bStatusPriority) {
+          return aStatusPriority - bStatusPriority;
+        }
+
+        // If both are active, sort by latest `dateCreated` (newest first)
+        if (a.status === "Pending" && b.status === "Pending") {
+          const aDate = new Date(a.dateCreated);
+          const bDate = new Date(b.dateCreated);
+          console.log(`Comparing dates: ${bDate} - ${aDate}`);
+          return bDate - aDate; // Newest date first
+        }
+        if (a.status === "Active" && b.status === "Active") {
+          const aDate = new Date(a.dateCreated);
+          const bDate = new Date(b.dateCreated);
+          console.log(`Comparing dates: ${bDate} - ${aDate}`);
+          return bDate - aDate; // Newest date first
+        }
+
+        return 0;
+      });
+
+      return sortedClients;
     } else {
-      // If no bills exist, just sort all clients by status and dateCreated
-      return allClients.sort(sortClients);
+      return allClients.sort((a, b) => {
+        const statusOrder = { Inactive: 1, Pending: 2, Active: 3 };
+
+        const aStatusPriority = statusOrder[a.status];
+        const bStatusPriority = statusOrder[b.status];
+
+        // Sort by status priority first
+        if (aStatusPriority !== bStatusPriority) {
+          return aStatusPriority - bStatusPriority;
+        }
+
+        // If both are active, sort by latest `dateCreated` (newest first)
+        if (a.status === "Active" && b.status === "Active") {
+          const aDate = new Date(a.dateCreated);
+          const bDate = new Date(b.dateCreated);
+          console.log(`Comparing dates: ${bDate} - ${aDate}`);
+          return bDate - aDate; // Newest date first
+        }
+
+        return 0;
+      });
     }
   } catch (error) {
     console.error("Error in ConsumersWithBill:", error);
@@ -209,34 +261,14 @@ exports.ConsumersWithBill = async () => {
   }
 };
 
-// Sorting function based on status and dateCreated
-const sortClients = (a, b) => {
-  // Define sorting priority for statuses
-  const STATUS_PRIORITY = {
-    inactive: 1, // Highest priority
-    pending: 2, // Middle priority
-    active: 3, // Lowest priority
-  };
-
-  const aStatusPriority = STATUS_PRIORITY[a.status] || 4; // Default to lowest priority if status is unknown
-  const bStatusPriority = STATUS_PRIORITY[b.status] || 4;
-
-  // Sort by status priority (inactive -> pending -> active)
-  if (aStatusPriority !== bStatusPriority) {
-    return aStatusPriority - bStatusPriority;
-  }
-
-  // If statuses are the same (i.e., both active), sort by dateCreated (newest first)
-  return new Date(b.dateCreated) - new Date(a.dateCreated);
-};
-
 exports.GetTotalClients = async () => {
   try {
     const totalClients = await client.countDocuments();
     const activeClients = await client.countDocuments({ status: "Active" });
     const inactiveClients = await client.countDocuments({ status: "Inactive" });
+    const pendingClients = await client.countDocuments({ status: "Pending" });
 
-    return { totalClients, activeClients, inactiveClients };
+    return { totalClients, activeClients, inactiveClients, pendingClients };
   } catch (error) {
     console.error("Error fetching client statistics:", error);
     res.status(500).json({ message: "Internal Server Error" });
@@ -314,8 +346,15 @@ exports.generateAccountNumber = async (data) => {
 };
 exports.GetforActivation = async () => {
   try {
-    // Fetch the accounts with activationStatus "pending"
-    const result = await client.find({ status: "Pending" });
+    // Get the current date to compare activation dates
+    const currentDate = new Date();
+
+    // Fetch the accounts with status "Pending" and activation_date less than the current date
+    const result = await client.find({
+      status: "Pending",
+      activation_date: { $lt: currentDate },
+    });
+
     return result;
   } catch (error) {
     // Log the error and throw it to be handled by the route
@@ -323,6 +362,7 @@ exports.GetforActivation = async () => {
     throw new Error("Error fetching accounts for activation");
   }
 };
+
 exports.UpdatePending = async (data) => {
   try {
     console.log("For Update", data);

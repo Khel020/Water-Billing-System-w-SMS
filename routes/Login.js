@@ -8,6 +8,7 @@ route.post("/newLogin", (req, res) => {
   controller
     .login(req.body)
     .then((result) => {
+      console.log(result);
       res.json(result); // Ensure result is sent as JSON
     })
     .catch((error) => {

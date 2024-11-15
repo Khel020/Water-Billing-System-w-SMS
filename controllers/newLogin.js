@@ -1,6 +1,7 @@
 const admin = require("../models/adminModel");
 const client = require("../models/usersModel");
 const billmngr = require("../models/BillMngr");
+const dataEntry = require("../models/dataEntry");
 const exp = require("express");
 const jwt = require("jsonwebtoken");
 const env = require("dotenv").config();
@@ -46,6 +47,13 @@ module.exports.login = async (req) => {
       }
     }
 
+    if (!user) {
+      user = await dataEntry.findOne({ username });
+      if (user) {
+        userType = user.usertype;
+      }
+    }
+    console.log(user);
     // If user still not found, return invalid username message
     if (!user) {
       return {
@@ -86,6 +94,16 @@ module.exports.login = async (req) => {
       returnBody.type = userType;
       return { success: true, returnBody: returnBody };
     } else if (userType === "admin") {
+      returnBody.token = makeToken({
+        user_id: user._id,
+        accountName: user.name,
+        type: userType,
+        isAdmin: user.isAdmin,
+      });
+      returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
+      returnBody.type = userType;
+      return { success: true, returnBody: returnBody };
+    } else if (userType === "data entry staff") {
       returnBody.token = makeToken({
         user_id: user._id,
         accountName: user.name,
