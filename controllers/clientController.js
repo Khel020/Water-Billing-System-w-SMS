@@ -362,7 +362,6 @@ exports.GetforActivation = async () => {
     throw new Error("Error fetching accounts for activation");
   }
 };
-
 exports.UpdatePending = async (data) => {
   try {
     console.log("For Update", data);

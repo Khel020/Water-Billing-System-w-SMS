@@ -210,3 +210,17 @@ route.get("/logs", (req, res) => {
     res.send(result);
   });
 });
+route.get("/revenues", (req, res) => {
+  console.log("Getting Monthly Revenue");
+  controller.monthlyRevenue().then((result) => {
+    console.log("RESULTL:", result);
+    res.send(result);
+  });
+});
+route.get("/paymentStatus", (req, res) => {
+  console.log("Getting paymentStatus");
+  controller.paymentStatus().then((result) => {
+    console.log("RESULTL:", result);
+    res.send(result);
+  });
+});

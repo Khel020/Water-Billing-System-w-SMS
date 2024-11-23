@@ -493,3 +493,105 @@ exports.GetLogs = async () => {
     };
   }
 };
+
+exports.monthlyRevenue = async () => {
+  const currentYear = new Date().getFullYear(); // Get current year
+  const startOfYear = new Date(currentYear, 0, 1); // January 1st of the current year
+  const endOfYear = new Date(currentYear, 11, 31); // December 31st of the current year
+
+  // Fetch all payments made within the current year
+  const paymentsInCurrentYear = await payments.find({
+    paymentDate: {
+      $gte: startOfYear,
+      $lte: endOfYear,
+    },
+  });
+
+  // Initialize an array with the months and set initial revenue to 0 for each month
+  const monthlyRevenueData = [
+    { month: "Jan", revenue: 0 },
+    { month: "Feb", revenue: 0 },
+    { month: "Mar", revenue: 0 },
+    { month: "Apr", revenue: 0 },
+    { month: "May", revenue: 0 },
+    { month: "Jun", revenue: 0 },
+    { month: "Jul", revenue: 0 },
+    { month: "Aug", revenue: 0 },
+    { month: "Sep", revenue: 0 },
+    { month: "Oct", revenue: 0 },
+    { month: "Nov", revenue: 0 },
+    { month: "Dec", revenue: 0 },
+  ];
+
+  // Iterate over each payment and accumulate the totals for the corresponding month
+  paymentsInCurrentYear.forEach((payment) => {
+    const paymentDate = new Date(payment.paymentDate); // Convert the payment date to a Date object
+    const monthIndex = paymentDate.getMonth(); // Get the month (0-11)
+
+    // Accumulate the payment for the respective month
+    monthlyRevenueData[monthIndex].revenue += payment.amountDue;
+  });
+
+  console.log("Monthly Revenue Data", monthlyRevenueData);
+  return monthlyRevenueData;
+};
+exports.paymentStatus = async () => {
+  const currentYear = new Date().getFullYear(); // Get current year
+  const startOfYear = new Date(currentYear, 0, 1); // January 1st of the current year
+  const endOfYear = new Date(currentYear, 11, 31); // December 31st of the current year
+
+  // Fetch all payments made within the current year
+  const paymentsInCurrentYear = await bills.find({
+    reading_date: { $gte: startOfYear, $lte: endOfYear },
+  });
+
+  console.log("paymentsInCurrentYear:", paymentsInCurrentYear);
+  console.log("Length:", paymentsInCurrentYear.length);
+
+  // Initialize TotalPaymentStatus for all months
+  const TotalPaymentStatus = [
+    { month: "Jan", paid: 0, unpaid: 0 },
+    { month: "Feb", paid: 0, unpaid: 0 },
+    { month: "Mar", paid: 0, unpaid: 0 },
+    { month: "Apr", paid: 0, unpaid: 0 },
+    { month: "May", paid: 0, unpaid: 0 },
+    { month: "Jun", paid: 0, unpaid: 0 },
+    { month: "Jul", paid: 0, unpaid: 0 },
+    { month: "Aug", paid: 0, unpaid: 0 },
+    { month: "Sep", paid: 0, unpaid: 0 },
+    { month: "Oct", paid: 0, unpaid: 0 },
+    { month: "Nov", paid: 0, unpaid: 0 },
+    { month: "Dec", paid: 0, unpaid: 0 },
+  ];
+
+  let totalPaid = 0; // Total amount paid for the year
+  let totalUnpaid = 0; // Total amount unpaid for the year
+
+  // Process payments to calculate paid and unpaid for each month
+  paymentsInCurrentYear.forEach((bill) => {
+    console.log("BILL:", bill);
+
+    const readingMonth = new Date(bill.reading_date).getMonth(); // Get month from reading_date
+    console.log("readingMonth:", readingMonth);
+
+    if (bill.payment_status === "Paid") {
+      const amountPaid = bill.amountPaid || 0;
+      TotalPaymentStatus[readingMonth].paid += amountPaid;
+      totalPaid += amountPaid; // Add to total paid
+    } else if (bill.payment_status === "Unpaid") {
+      const totalDue = bill.totalDue || 0;
+      TotalPaymentStatus[readingMonth].unpaid += totalDue;
+      totalUnpaid += totalDue; // Add to total unpaid
+    }
+  });
+
+  console.log("TotalPaymentStatus:", TotalPaymentStatus);
+  console.log("Total Paid for the Year:", totalPaid);
+  console.log("Total Unpaid for the Year:", totalUnpaid);
+
+  return {
+    TotalPaymentStatus,
+    totalPaid,
+    totalUnpaid,
+  };
+};
