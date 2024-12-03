@@ -15,7 +15,6 @@ let makeToken = (data) => {
 
 //TODO: CLIENT LOGIN TOKEN
 module.exports.login = async (req) => {
-  console.log("Request", req); // Use req.body here
   try {
     const username = req.username; // Correctly access req.body
     const password = req.password;
@@ -26,35 +25,11 @@ module.exports.login = async (req) => {
     let userType;
 
     // Check bill manager first
-    user = await billmngr.findOne({ username });
+    user = await client.findOne({ username });
     if (user) {
       userType = user.usertype;
     }
 
-    // If not found, check admin
-    if (!user) {
-      user = await admin.findOne({ username });
-      if (user) {
-        userType = user.usertype;
-      }
-    }
-
-    // If still not found, check client
-    if (!user) {
-      user = await client.findOne({ username });
-      if (user) {
-        userType = user.usertype;
-      }
-    }
-
-    if (!user) {
-      user = await dataEntry.findOne({ username });
-      if (user) {
-        userType = user.usertype;
-      }
-    }
-    console.log(user);
-    // If user still not found, return invalid username message
     if (!user) {
       return {
         success: false,
@@ -104,6 +79,101 @@ module.exports.login = async (req) => {
       returnBody.type = userType;
       return { success: true, returnBody: returnBody };
     } else if (userType === "data entry staff") {
+      returnBody.token = makeToken({
+        user_id: user._id,
+        accountName: user.name,
+        type: userType,
+        isAdmin: user.isAdmin,
+      });
+      returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
+      returnBody.type = userType;
+      return { success: true, returnBody: returnBody };
+    } else {
+      return { success: false, message: "Invalid User Type" };
+    }
+  } catch (error) {
+    console.error("Login Error:", error);
+    throw new Error("Server error"); // Throw error to be caught in route
+  }
+};
+
+module.exports.orgLogin = async (req) => {
+  try {
+    const username = req.username; // Correctly access req.body
+    const password = req.password;
+
+    console.log("Username and password", username, password);
+
+    let user;
+    let userType;
+
+    //TODO: FOR Cashier
+    user = await billmngr.findOne({ username });
+    if (user) {
+      userType = user.usertype;
+    }
+    //TODO: FOR ADMIN
+    if (!user) {
+      user = await admin.findOne({ username });
+      if (user) {
+        userType = user.usertype;
+      }
+    }
+    //TODO: FOR DataUploader
+    if (!user) {
+      user = await dataEntry.findOne({ username });
+      if (user) {
+        userType = user.usertype;
+      }
+    }
+
+    if (!user) {
+      return {
+        success: false,
+        message: "Account Name not found. Please try again.",
+      };
+    }
+
+    // Check if password is valid
+    const isPasswordValid = await BCRYPT.compare(password, user.password);
+    if (!isPasswordValid) {
+      return { success: false, message: "Access denied: Incorrect password." };
+    }
+
+    // Password is valid, generate the token
+    const returnBody = {};
+
+    if (userType === "billmngr") {
+      returnBody.token = makeToken({
+        user_id: user._id,
+        accountName: user.name,
+        type: userType,
+        IsBiller: user.isBiller,
+      });
+      returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
+      returnBody.type = userType;
+      return { success: true, returnBody: returnBody };
+    } else if (userType === "admin") {
+      returnBody.token = makeToken({
+        user_id: user._id,
+        accountName: user.name,
+        type: userType,
+        isAdmin: user.isAdmin,
+      });
+      returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
+      returnBody.type = userType;
+      return { success: true, returnBody: returnBody };
+    } else if (userType === "data entry staff") {
+      returnBody.token = makeToken({
+        user_id: user._id,
+        accountName: user.name,
+        type: userType,
+        isAdmin: user.isAdmin,
+      });
+      returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
+      returnBody.type = userType;
+      return { success: true, returnBody: returnBody };
+    } else if (userType === "information tech") {
       returnBody.token = makeToken({
         user_id: user._id,
         accountName: user.name,

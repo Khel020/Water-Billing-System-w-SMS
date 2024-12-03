@@ -26,7 +26,6 @@ exports.CreateClient = async (data) => {
     return { error: `There was an error processing the batch: ${err.message}` };
   }
 };
-
 // New function to handle single client creation request
 async function CreateClient(clientData) {
   try {

@@ -86,7 +86,6 @@ exports.CreateUser = async (data) => {
     };
   }
 };
-
 exports.GetAllUsers = async (data) => {
   return await user
     .find({})

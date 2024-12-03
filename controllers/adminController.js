@@ -17,6 +17,7 @@ const pnv = process.env;
 let passHash = (password) => {
   return bcrypt.hashSync(password, parseInt(pnv.SALT));
 };
+//TODO: ACCOUNT MANAGEMENT
 exports.CreateAdmin = async (data) => {
   const account = await admin.findOne({
     $or: [{ username: data.username }, { email: data.email }],
@@ -104,6 +105,7 @@ exports.GetAdmin = async (data) => {
       return { error: "There is an error" };
     });
 };
+
 exports.UpdateAdminByID = async (data) => {
   const adminID = data._id;
   const name = data.name;
