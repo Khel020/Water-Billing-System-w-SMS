@@ -1,4 +1,4 @@
-const biller = require("../models/BillMngr");
+const biller = require("../models/Cashiers");
 const bills = require("../models/BillsModel");
 const Rate = require("../models/ratesModel");
 const Logs = require("../models/LogsModel");

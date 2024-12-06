@@ -1,6 +1,6 @@
 const admin = require("../models/adminModel");
 const client = require("../models/usersModel");
-const billmngr = require("../models/BillMngr");
+const cashier = require("../models/Cashiers");
 const dataEntry = require("../models/dataEntry");
 const exp = require("express");
 const jwt = require("jsonwebtoken");
@@ -58,36 +58,6 @@ module.exports.login = async (req) => {
       returnBody.name = user.username;
       returnBody.type = userType;
       return { success: true, returnBody: returnBody };
-    } else if (userType === "billmngr") {
-      returnBody.token = makeToken({
-        user_id: user._id,
-        accountName: user.name,
-        type: userType,
-        IsBiller: user.isBiller,
-      });
-      returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
-      returnBody.type = userType;
-      return { success: true, returnBody: returnBody };
-    } else if (userType === "admin") {
-      returnBody.token = makeToken({
-        user_id: user._id,
-        accountName: user.name,
-        type: userType,
-        isAdmin: user.isAdmin,
-      });
-      returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
-      returnBody.type = userType;
-      return { success: true, returnBody: returnBody };
-    } else if (userType === "data entry staff") {
-      returnBody.token = makeToken({
-        user_id: user._id,
-        accountName: user.name,
-        type: userType,
-        isAdmin: user.isAdmin,
-      });
-      returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
-      returnBody.type = userType;
-      return { success: true, returnBody: returnBody };
     } else {
       return { success: false, message: "Invalid User Type" };
     }
@@ -108,7 +78,7 @@ module.exports.orgLogin = async (req) => {
     let userType;
 
     //TODO: FOR Cashier
-    user = await billmngr.findOne({ username });
+    user = await cashier.findOne({ username });
     if (user) {
       userType = user.usertype;
     }
@@ -143,12 +113,12 @@ module.exports.orgLogin = async (req) => {
     // Password is valid, generate the token
     const returnBody = {};
 
-    if (userType === "billmngr") {
+    if (userType === "cashier") {
       returnBody.token = makeToken({
         user_id: user._id,
         accountName: user.name,
         type: userType,
-        IsBiller: user.isBiller,
+        IsCashier: user.IsCashier,
       });
       returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
       returnBody.type = userType;

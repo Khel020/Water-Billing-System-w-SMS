@@ -19,6 +19,11 @@ let ITaccount = new mongoose.Schema({
     required: [true, "Required!"],
     maxLength: 11,
   },
+  name: {
+    type: String,
+    trim: true,
+    required: [true, "Required!"],
+  },
   f_name: {
     type: String,
     trim: true,

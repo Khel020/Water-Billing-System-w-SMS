@@ -3,11 +3,12 @@ const mng = require("mongoose"); //wrapper library for database
 const env = require("dotenv").config(); // for secret variables
 const crs = require("cors"); // sino lang ang pwede mag access sang server
 const admin = require("./routes/adminRoute.js");
-const CLIENT = require("./routes/clientRoute.js");
-const BILLER = require("./routes/billerRoutes.js");
+const CLIENT = require("./routes/consumerRoute.js");
+const CASHIER = require("./routes/cashierRoute.js");
 const USERS = require("./routes/userRoute.js");
 const LOGIN = require("./routes/Login.js");
 const DATAENTRY = require("./routes/dataentryRoute.js");
+const INFOTECH = require("./routes/InfoTechRoute.js");
 const app = exp(); // mismong server
 const http = require("http"); // for http server
 const server = http.createServer(app);
@@ -19,7 +20,8 @@ app.use(crs()); //
 app.use(exp.json()); // middleware
 
 app.use("/admin", admin);
-app.use("/biller", BILLER);
+app.use("/infoTech", INFOTECH);
+app.use("/biller", CASHIER);
 app.use("/client", CLIENT);
 app.use("/dataentry", DATAENTRY);
 app.use("/user", USERS);

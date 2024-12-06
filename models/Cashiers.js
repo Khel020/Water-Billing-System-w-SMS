@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-let billmngrSchema = new mongoose.Schema({
+let CashierSchema = new mongoose.Schema({
   username: {
     type: String,
     trim: true,
@@ -37,12 +37,12 @@ let billmngrSchema = new mongoose.Schema({
   usertype: {
     type: String,
     required: true,
-    default: "billmngr",
+    default: "cashier",
   },
   dateCreated: {
     type: Date,
   },
-  isBiller: {
+  isCashier: {
     type: Boolean,
     default: true,
   },
@@ -56,5 +56,5 @@ let billmngrSchema = new mongoose.Schema({
     default: false,
   },
 });
-const BILLMNGR = mongoose.model("billmanagers", billmngrSchema);
-module.exports = BILLMNGR;
+const CASHIERS = mongoose.model("Cashiers", CashierSchema);
+module.exports = CASHIERS;

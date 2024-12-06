@@ -1,6 +1,6 @@
 const exp = require("express");
 const route = exp.Router();
-const biller = require("../controllers/billmngrController");
+const cashier = require("../controllers/cashierController");
 const controller = require("../controllers/clientController");
 const auth = require("../middleware/Auth");
 const { GetTotalClients } = require("../controllers/clientController");
@@ -15,26 +15,26 @@ route.get("/clients/:acc_number", (req, res) => {
 route.post("/addBiller", (req, res) => {
   console.log("Adding Biller..");
   console.log(req.body);
-  biller.CreateBillingMngr(req.body).then((result) => {
+  cashier.CreateBillingMngr(req.body).then((result) => {
     res.send(result);
   });
 });
 route.post("/addbill", (req, res) => {
   console.log("Adding Bill");
   console.log("Request Body", req.body);
-  biller.AddBill(req.body).then((result) => {
+  cashier.AddBill(req.body).then((result) => {
     res.send(result);
   });
 });
 route.get("/getAllbills", (req, res) => {
   console.log("Getting All Bills");
-  biller.GetAllBills(req.body).then((result) => {
+  cashier.GetAllBills(req.body).then((result) => {
     res.send(result);
   });
 });
 route.get("/getBillbyAccNum/:acc_number", (req, res) => {
   console.log("Your Request Body:", req.params);
-  biller.GetBillsByAccNum(req.params).then((result) => {
+  cashier.GetBillsByAccNum(req.params).then((result) => {
     console.log(result);
     res.send(result);
   });
@@ -43,7 +43,7 @@ route.get("/getBillbyBillNum", (req, res) => {
   const billNumber = req.query.billNumber; // Extract billNumber from query parameters
   console.log("Received Bill Number:", billNumber);
 
-  biller
+  cashier
     .GetBillsByBillNum({ billNumber })
     .then((result) => {
       console.log(result);
@@ -59,7 +59,7 @@ route.get("/findBillPay/:account", auth.BillerOnly, async (req, res) => {
     console.log("Finding bill for payment...", req.params.account);
 
     // Pass the account parameter to the findBillsPayment function
-    const response = await biller.findBillsPayment(req.params.account);
+    const response = await cashier.findBillsPayment(req.params.account);
 
     if (!response) {
       return res
@@ -110,7 +110,7 @@ route.post(
     };
 
     // Call the AddPayment method with the prepared paymentData
-    biller
+    cashier
       .AddPayment(paymentData)
       .then((result) => {
         console.log("Result", result);
@@ -126,7 +126,7 @@ route.post(
 route.post("/calculateChange", (req, res) => {
   console.log("Calculating Charge:");
   console.log(req.body);
-  biller.calculateChange(req.body).then((result) => {
+  cashier.calculateChange(req.body).then((result) => {
     console.log("Result", result);
     res.send(result);
   });
@@ -134,7 +134,7 @@ route.post("/calculateChange", (req, res) => {
 route.get("/getPayments/:acc_num", async (req, res) => {
   const acc_num = req.params.acc_num;
   try {
-    biller.GetPaymentsAccNum(acc_num).then((result) => {
+    cashier.GetPaymentsAccNum(acc_num).then((result) => {
       res.json(result);
     });
   } catch (error) {
@@ -143,7 +143,7 @@ route.get("/getPayments/:acc_num", async (req, res) => {
 });
 route.get("/billStatus", async (req, res) => {
   try {
-    const stats = await biller.getBillStatus();
+    const stats = await cashier.getBillStatus();
     res.json(stats);
   } catch (error) {
     console.error("Error fetching client statistics:", error);
@@ -167,7 +167,7 @@ route.get("/latestBill/:acc_num", (req, res) => {
   const acc_num = req.params.acc_num;
   console.log("ACCOUNT num", acc_num);
   try {
-    biller.getLatestBill(acc_num).then((result) => {
+    cashier.getLatestBill(acc_num).then((result) => {
       console.log("result", result);
       res.json(result);
     });
@@ -191,8 +191,8 @@ route.put("/adjustbill/:id", auth.BillerOnly, async (req, res) => {
   console.log("Adjustment Data:", adjustmentData);
 
   try {
-    // Assuming biller.adjustbill is a function that returns a promise
-    const result = await biller.adjustbill(billId, adjustmentData);
+    // Assuming cashier.adjustbill is a function that returns a promise
+    const result = await cashier.adjustbill(billId, adjustmentData);
     console.log("Updated Bill:", result);
 
     // Send the response only once after the operation is complete

@@ -1,7 +1,7 @@
 const admin = require("../models/adminModel.js");
 const dataEntry = require("../models/dataEntry.js");
 const users = require("../models/usersModel.js");
-const biller = require("../models/BillMngr.js");
+const cashier = require("../models/Cashiers.js");
 const Client = require("../models/clientModel.js");
 const payments = require("../models/payments.js");
 const bills = require("../models/BillsModel.js");
@@ -139,7 +139,7 @@ exports.GetAllUsers = async (req, res) => {
   try {
     // Fetch data from each collection, excluding archived accounts
     const usersData = await users.find({ isArchive: { $ne: true } }).exec();
-    const billerData = await biller.find({ isArchive: { $ne: true } }).exec();
+    const billerData = await cashier.find({ isArchive: { $ne: true } }).exec();
     const adminData = await admin.find({ isArchive: { $ne: true } }).exec();
     const dataEntryData = await dataEntry
       .find({ isArchive: { $ne: true } })
@@ -150,9 +150,9 @@ exports.GetAllUsers = async (req, res) => {
       role: "user", // Adding role
     }));
 
-    const billersWithRole = billerData.map((biller) => ({
-      ...biller.toObject(),
-      role: "biller",
+    const billersWithRole = billerData.map((cashier) => ({
+      ...cashier.toObject(),
+      role: "cashier",
     }));
 
     const adminsWithRole = adminData.map((admin) => ({
@@ -206,8 +206,8 @@ exports.updateAccountStatus = async (req, res) => {
     // Determine which model to use based on user type
     if (usertype === "admin") {
       model = admin;
-    } else if (usertype === "billmngr") {
-      model = biller;
+    } else if (usertype === "cashier") {
+      model = cashier;
     } else if (usertype === "users") {
       model = users;
     } else {
@@ -271,12 +271,12 @@ exports.ArchiveAccount = async (data) => {
         break;
 
       case "billermngr":
-        archivedAccount = await biller.findByIdAndUpdate(
+        archivedAccount = await cashier.findByIdAndUpdate(
           id,
           { isArchive: true, status: "deactivated" },
           { new: true }
         );
-        console.log(`Archiving biller manager account with ID: ${id}`);
+        console.log(`Archiving cashier manager account with ID: ${id}`);
         break;
 
       default:
