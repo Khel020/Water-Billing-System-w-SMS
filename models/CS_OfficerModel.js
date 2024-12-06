@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-let dataEntryStaffSchema = new mongoose.Schema({
+let CS_OfficerSchema = new mongoose.Schema({
   username: {
     type: String,
     trim: true,
@@ -26,6 +26,16 @@ let dataEntryStaffSchema = new mongoose.Schema({
       message: "Contact number must be 11 digits and numeric.",
     },
   },
+  f_name: {
+    type: String,
+    trim: true,
+    required: [true, "Required firstname!"],
+  },
+  last_name: {
+    type: String,
+    trim: true,
+    required: [true, "Required lastname!"],
+  },
   name: {
     type: String,
     trim: true,
@@ -44,12 +54,12 @@ let dataEntryStaffSchema = new mongoose.Schema({
   usertype: {
     type: String,
     required: true,
-    default: "data entry staff",
+    default: "CS_Officer",
   },
   dateCreated: {
     type: Date,
   },
-  isDataEntry: {
+  isCS_Officer: {
     type: Boolean,
     default: true,
   },
@@ -63,5 +73,5 @@ let dataEntryStaffSchema = new mongoose.Schema({
     default: false,
   },
 });
-const DATAENTRY = mongoose.model("DataEntryStaff", dataEntryStaffSchema);
-module.exports = DATAENTRY;
+const CS_Officer = mongoose.model("CS_Officer", CS_OfficerSchema);
+module.exports = CS_Officer;

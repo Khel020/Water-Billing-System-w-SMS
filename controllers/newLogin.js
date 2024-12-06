@@ -2,6 +2,7 @@ const admin = require("../models/adminModel");
 const client = require("../models/usersModel");
 const cashier = require("../models/Cashiers");
 const dataEntry = require("../models/dataEntry");
+const IT = require("../models/IT_Model");
 const exp = require("express");
 const jwt = require("jsonwebtoken");
 const env = require("dotenv").config();
@@ -96,6 +97,13 @@ module.exports.orgLogin = async (req) => {
         userType = user.usertype;
       }
     }
+    //TODO: FOr IT
+    if (!user) {
+      user = await IT.findOne({ username });
+      if (user) {
+        userType = user.usertype;
+      }
+    }
 
     if (!user) {
       return {
@@ -143,7 +151,7 @@ module.exports.orgLogin = async (req) => {
       returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
       returnBody.type = userType;
       return { success: true, returnBody: returnBody };
-    } else if (userType === "information tech") {
+    } else if (userType === "Information Tech") {
       returnBody.token = makeToken({
         user_id: user._id,
         accountName: user.name,

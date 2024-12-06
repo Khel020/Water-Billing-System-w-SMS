@@ -2,6 +2,7 @@ const admin = require("../models/adminModel.js");
 const dataEntry = require("../models/dataEntry.js");
 const users = require("../models/usersModel.js");
 const cashier = require("../models/Cashiers.js");
+const csOfficer = require("../models/CS_OfficerModel.js");
 const Client = require("../models/clientModel.js");
 const payments = require("../models/payments.js");
 const bills = require("../models/BillsModel.js");
@@ -141,6 +142,7 @@ exports.GetAllUsers = async (req, res) => {
     const usersData = await users.find({ isArchive: { $ne: true } }).exec();
     const billerData = await cashier.find({ isArchive: { $ne: true } }).exec();
     const adminData = await admin.find({ isArchive: { $ne: true } }).exec();
+    const CSData = await csOfficer.find({ isArchive: { $ne: true } }).exec();
     const dataEntryData = await dataEntry
       .find({ isArchive: { $ne: true } })
       .exec();
@@ -163,9 +165,14 @@ exports.GetAllUsers = async (req, res) => {
       ...dataEntry.toObject(),
       role: "data entry",
     }));
+    const csWithRole = CSData.map((dataEntry) => ({
+      ...dataEntry.toObject(),
+      role: "cs-officer",
+    }));
 
     // Combine all the data into one array
     const allUsers = [
+      ...csWithRole,
       ...usersWithRole,
       ...billersWithRole,
       ...adminsWithRole,

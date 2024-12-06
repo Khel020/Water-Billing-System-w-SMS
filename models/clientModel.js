@@ -52,8 +52,17 @@ let clientSchema = new mongoose.Schema({
     type: Date,
   },
   contact: {
-    type: Number,
-    required: true,
+    type: String, // Change to String
+    trim: true,
+    required: [true, "Required!"],
+    maxLength: [11, "Contact number must be 11 digits"],
+    validate: {
+      validator: function (value) {
+        // Validate that it is numeric and 11 digits long
+        return /^\d{11}$/.test(value);
+      },
+      message: "Contact number must be 11 digits and numeric.",
+    },
   },
   client_type: {
     type: String,

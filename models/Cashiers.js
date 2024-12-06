@@ -14,10 +14,17 @@ let CashierSchema = new mongoose.Schema({
     minLength: [8, "Password should be at least 8-12 characters long"],
   },
   contact: {
-    type: Number,
+    type: String, // Change to String
     trim: true,
     required: [true, "Required!"],
-    maxLength: 11,
+    maxLength: [11, "Contact number must be 11 digits"],
+    validate: {
+      validator: function (value) {
+        // Validate that it is numeric and 11 digits long
+        return /^\d{11}$/.test(value);
+      },
+      message: "Contact number must be 11 digits and numeric.",
+    },
   },
   name: {
     type: String,
