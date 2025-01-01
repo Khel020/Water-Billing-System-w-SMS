@@ -65,7 +65,7 @@ module.exports.isBiller = (req, res) => {
   if (!module.exports.tokenCheck(req, res)) {
     return false;
   }
-  if (req.user.type == "billmngr") {
+  if (req.user.type == "cashier") {
     return true;
   } else {
     return false;

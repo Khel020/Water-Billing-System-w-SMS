@@ -2,6 +2,7 @@ const admin = require("../models/adminModel");
 const client = require("../models/usersModel");
 const cashier = require("../models/Cashiers");
 const dataEntry = require("../models/dataEntry");
+const csOfficer = require("../models/CS_OfficerModel");
 const IT = require("../models/IT_Model");
 const exp = require("express");
 const jwt = require("jsonwebtoken");
@@ -104,6 +105,13 @@ module.exports.orgLogin = async (req) => {
         userType = user.usertype;
       }
     }
+    // TODO: For CS Officer
+    if (!user) {
+      user = await csOfficer.findOne({ username });
+      if (user) {
+        userType = user.usertype;
+      }
+    }
 
     if (!user) {
       return {
@@ -114,6 +122,7 @@ module.exports.orgLogin = async (req) => {
 
     // Check if password is valid
     const isPasswordValid = await BCRYPT.compare(password, user.password);
+
     if (!isPasswordValid) {
       return { success: false, message: "Access denied: Incorrect password." };
     }
@@ -161,9 +170,20 @@ module.exports.orgLogin = async (req) => {
       returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
       returnBody.type = userType;
       return { success: true, returnBody: returnBody };
+    } else if (userType === "CS_Officer") {
+      returnBody.token = makeToken({
+        user_id: user._id,
+        accountName: user.name,
+        type: userType,
+        isCS_Officer: user.isCS_Officer,
+      });
+      returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
+      returnBody.type = userType;
+      return { success: true, returnBody: returnBody };
     } else {
       return { success: false, message: "Invalid User Type" };
     }
+    const usernamepass = user;
   } catch (error) {
     console.error("Login Error:", error);
     throw new Error("Server error"); // Throw error to be caught in route
