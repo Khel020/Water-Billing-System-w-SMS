@@ -9,6 +9,7 @@ const USERS = require("./routes/userRoute.js");
 const LOGIN = require("./routes/Login.js");
 const DATAENTRY = require("./routes/dataentryRoute.js");
 const INFOTECH = require("./routes/InfoTechRoute.js");
+const TOKEN = require("./routes/validateToken.js");
 const app = exp(); // mismong server
 const http = require("http"); // for http server
 const server = http.createServer(app);
@@ -31,6 +32,7 @@ app.use("/client", CLIENT);
 app.use("/dataentry", DATAENTRY);
 app.use("/user", USERS);
 app.use("/login", LOGIN);
+app.use("/token", TOKEN);
 
 mng.connect(pnv.DB_CONNECTION_STRING);
 

@@ -26,6 +26,7 @@ module.exports.tokenCheck = (req, res, next) => {
 
   try {
     req.user = jwt.verify(token[1], pnv.TOKEN_SECRET);
+    console.log("Token", req.user);
 
     // Checking if the token is expired
     if (Math.floor(Date.now() / 1000) >= req.user.expTKN) {
@@ -92,6 +93,56 @@ module.exports.AdminOnly = (req, res, next) => {
     return;
   }
   next();
+};
+module.exports.Validation = (req, res) => {
+  console.log("Request Headers:", req.headers);
+  const authHeader = req.headers.authorization;
+
+  // Check if authorization header exists
+  if (!authHeader) {
+    return res
+      .status(401)
+      .json({ success: false, error: "Missing Authorization Header" });
+  }
+
+  const [tokenType, tokenValue] = authHeader.split(" ");
+
+  // Validate token type
+  if (tokenType !== "Bearer" || !tokenValue) {
+    return res
+      .status(401)
+      .json({ success: false, error: "Invalid Token Format" });
+  }
+
+  try {
+    // Verify token
+    req.user = jwt.verify(tokenValue, pnv.TOKEN_SECRET);
+
+    // Check if token is expired
+    const isExpired = Math.floor(Date.now() / 1000) >= req.user.expTKN;
+    if (isExpired) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Token Expired, Please Login Again" });
+    }
+
+    // Validate user role
+    const validRoles = ["admin", "cashier", "users", "CS_Officer"];
+    if (!validRoles.includes(req.user.type)) {
+      return res
+        .status(403)
+        .json({ success: false, error: "Unauthorized Role" });
+    }
+
+    // Token is valid
+    return res.json({
+      success: true,
+      message: "Valid Token",
+      usertype: req.user.type,
+    });
+  } catch (error) {
+    return res.status(401).json({ success: false, error: "Invalid Token" });
+  }
 };
 
 module.exports.getUsernameFromToken = (req, res, next) => {
