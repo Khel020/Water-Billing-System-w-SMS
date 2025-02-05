@@ -2,6 +2,7 @@ const admin = require("../models/adminModel.js");
 const dataEntry = require("../models/dataEntry.js");
 const users = require("../models/usersModel.js");
 const cashier = require("../models/Cashiers.js");
+const biller = require("../models/Cashiers.js");
 const csOfficer = require("../models/CS_OfficerModel.js");
 const Client = require("../models/clientModel.js");
 const payments = require("../models/payments.js");
@@ -19,6 +20,155 @@ let passHash = (password) => {
   return bcrypt.hashSync(password, parseInt(pnv.SALT));
 };
 //TODO: ACCOUNT MANAGEMENT
+exports.CreateAccounts = async (data) => {
+  if (data.role === "admin") {
+    const account = await admin.findOne({
+      $or: [{ username: data.username }, { email: data.email }],
+    });
+    if (account) {
+      const errors = {};
+      if (account.username === data.username) {
+        errors.acc_name = "Username Name is already taken.";
+      }
+      if (account.email === data.email) {
+        errors.email = "Email is already taken.";
+      }
+      return { success: false, errors };
+    } else {
+      let newAdmin = new admin();
+      newAdmin.username = data.username;
+      newAdmin.password = passHash(data.password);
+      newAdmin.contact = data.contact;
+      newAdmin.name = `${data.fname} ${data.lastname}`;
+      newAdmin.email = data.email;
+      newAdmin.address = data.address;
+      newAdmin.dateCreated = new Date();
+      return newAdmin
+        .save()
+        .then((result) => {
+          if (result) {
+            return { success: true, message: "Admin already saved" };
+          }
+        })
+        .catch((err) => {
+          return { success: false, error: "There is an error" + err };
+        });
+    }
+  } else if (data.role === "uploader") {
+    const account = await dataEntry.findOne({
+      $or: [
+        { username: data.username },
+        { email: data.email },
+        { contact: data.contact },
+      ],
+    });
+    if (account) {
+      const errors = {};
+      if (account.username === data.username) {
+        errors.acc_name = "Username Name is already taken.";
+      }
+      if (account.email === data.email) {
+        errors.email = "Email is already taken.";
+      }
+      if (account.contact === data.contact) {
+        errors.acc_name = "Contact is already taken.";
+      }
+      return { success: false, errors };
+    } else {
+      let newDataEntry = new dataEntry();
+      newDataEntry.username = data.username;
+      newDataEntry.password = passHash(data.password);
+      newDataEntry.contact = data.contact;
+      newDataEntry.name = `${data.fname} ${data.lastname}`;
+      newDataEntry.email = data.email;
+      newDataEntry.address = data.address;
+      newDataEntry.dateCreated = new Date();
+      return newDataEntry
+        .save()
+        .then((result) => {
+          if (result) {
+            return { success: true, message: "Admin already saved" };
+          }
+        })
+        .catch((err) => {
+          return { success: false, error: "There is an error" + err };
+        });
+    }
+  } else if (data.role === "cashier") {
+    const account = await cashier.findOne({
+      $or: [{ username: data.username }, { email: data.email }],
+    });
+    if (account) {
+      const errors = {};
+      if (account.username === data.username) {
+        errors.acc_name = "Username is already taken.";
+      }
+      if (account.email === data.email) {
+        errors.email = "Email is already taken.";
+      }
+      return { success: false, errors };
+    } else {
+      let newBillMngr = new cashier();
+      newBillMngr.username = data.username;
+      newBillMngr.password = passHash(data.password);
+      newBillMngr.contact = data.contact;
+      newBillMngr.name = `${data.fname} ${data.lastname}`;
+      newBillMngr.email = data.email;
+      newBillMngr.address = data.address;
+      newBillMngr.dateCreated = new Date();
+
+      return newBillMngr
+        .save()
+        .then((result) => {
+          if (result) {
+            return { success: true, message: "New Biller already saved" };
+          }
+        })
+        .catch((err) => {
+          return { success: false, error: "There is an error" + err };
+        });
+    }
+  } else if (data.role === "cs_officer") {
+    const account = await csOfficer.findOne({
+      $or: [{ username: data.username }, { email: data.email }],
+    });
+    if (account) {
+      const errors = {};
+      if (account.username === data.username) {
+        errors.acc_name = "Username is already taken.";
+      }
+      if (account.email === data.email) {
+        errors.email = "Email is already taken.";
+      }
+      return { success: false, errors };
+    } else {
+      console.log("asdkahsdjh");
+      let newCSOfficer = new csOfficer();
+      newCSOfficer.username = data.username;
+      newCSOfficer.password = passHash(data.password);
+      newCSOfficer.contact = data.contact;
+      newCSOfficer.name = `${data.fname} ${data.lastname}`;
+      newCSOfficer.f_name = data.fname;
+      newCSOfficer.last_name = data.lastname;
+      newCSOfficer.email = data.email;
+      newCSOfficer.address = data.address;
+      newCSOfficer.dateCreated = new Date();
+
+      return newCSOfficer
+        .save()
+        .then((result) => {
+          if (result) {
+            return { success: true, message: "New CS Officer already saved" };
+          }
+        })
+        .catch((err) => {
+          return { success: false, error: "There is an error" + err };
+        });
+    }
+  } else {
+    return { success: false, message: "Invalid Role" };
+  }
+};
 exports.CreateAdmin = async (data) => {
   const account = await admin.findOne({
     $or: [{ username: data.username }, { email: data.email }],
@@ -42,47 +192,6 @@ exports.CreateAdmin = async (data) => {
     newAdmin.address = data.address;
     newAdmin.dateCreated = new Date();
     return newAdmin
-      .save()
-      .then((result) => {
-        if (result) {
-          return { success: true, message: "Admin already saved" };
-        }
-      })
-      .catch((err) => {
-        return { success: false, error: "There is an error" + err };
-      });
-  }
-};
-exports.CreateDataEntry = async (data) => {
-  const account = await dataEntry.findOne({
-    $or: [
-      { username: data.username },
-      { email: data.email },
-      { contact: data.contact },
-    ],
-  });
-  if (account) {
-    const errors = {};
-    if (account.username === data.username) {
-      errors.acc_name = "Username Name is already taken.";
-    }
-    if (account.email === data.email) {
-      errors.email = "Email is already taken.";
-    }
-    if (account.contact === data.contact) {
-      errors.acc_name = "Contact is already taken.";
-    }
-    return { success: false, errors };
-  } else {
-    let newDataEntry = new dataEntry();
-    newDataEntry.username = data.username;
-    newDataEntry.password = passHash(data.password);
-    newDataEntry.contact = data.contact;
-    newDataEntry.name = `${data.fname} ${data.lastname}`;
-    newDataEntry.email = data.email;
-    newDataEntry.address = data.address;
-    newDataEntry.dateCreated = new Date();
-    return newDataEntry
       .save()
       .then((result) => {
         if (result) {

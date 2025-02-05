@@ -44,7 +44,7 @@ let dataEntryStaffSchema = new mongoose.Schema({
   usertype: {
     type: String,
     required: true,
-    default: "data entry staff",
+    default: "Uploader",
   },
   dateCreated: {
     type: Date,

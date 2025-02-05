@@ -40,17 +40,19 @@ module.exports.tokenCheck = (req, res, next) => {
   }
 };
 
+//Check if the usertype is admin
 module.exports.isAdmin = (req, res) => {
   if (!module.exports.tokenCheck(req, res)) {
     return false;
   }
   if (req.user.type == "admin") {
+    console.log("Admin");
     return true;
   } else {
     return false;
   }
 };
-
+//Check if the usertype is user
 module.exports.isUser = (req, res) => {
   if (!module.exports.tokenCheck(req, res)) {
     return false;
@@ -61,7 +63,7 @@ module.exports.isUser = (req, res) => {
     return false;
   }
 };
-
+//Check if the usertype is cashier
 module.exports.isBiller = (req, res) => {
   if (!module.exports.tokenCheck(req, res)) {
     return false;
@@ -72,9 +74,49 @@ module.exports.isBiller = (req, res) => {
     return false;
   }
 };
+//Check if the usertype is CS_Officer
+module.exports.isCS_Officer = (req, res) => {
+  if (!module.exports.tokenCheck(req, res)) {
+    return false;
+  }
+  if (req.user.type == "CS_Officer") {
+    console.log("CS Officer");
+    return true;
+  } else {
+    return false;
+  }
+};
+module.exports.isDataUploader = (req, res) => {
+  if (!module.exports.tokenCheck(req, res)) {
+    return false;
+  }
+  if (req.user.type == "data entry staff") {
+    return true;
+  } else {
+    return false;
+  }
+};
+module.exports.AdminOrCS_Officer = (req, res, next) => {
+  if (
+    module.exports.isAdmin(req, res) ||
+    module.exports.isCS_Officer(req, res)
+  ) {
+    console.log("TYPE KO", req.user.type);
+    next();
+  } else {
+    res.status(403).send({ Message: "Forbidden Action" });
+  }
+};
 
-module.exports.BillerOnly = (req, res, next) => {
-  if (!module.exports.isBiller(req, res)) {
+module.exports.AdminOnly = (req, res, next) => {
+  if (!module.exports.isAdmin(req, res)) {
+    res.send({ Message: "Forbiden Action" });
+    return;
+  }
+  next();
+};
+module.exports.CS_OfficerOnly = (req, res, next) => {
+  if (!module.exports.isCS_Officer(req, res)) {
     res.send({ Message: "Forbiden Action" });
     return;
   }
@@ -87,13 +129,14 @@ module.exports.UserOnly = (req, res, next) => {
   }
   next;
 };
-module.exports.AdminOnly = (req, res, next) => {
-  if (!module.exports.isAdmin(req, res)) {
+module.exports.BillerOnly = (req, res, next) => {
+  if (!module.exports.isBiller(req, res)) {
     res.send({ Message: "Forbiden Action" });
     return;
   }
   next();
 };
+
 module.exports.Validation = (req, res) => {
   console.log("Request Headers:", req.headers);
   const authHeader = req.headers.authorization;

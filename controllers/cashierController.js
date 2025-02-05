@@ -14,49 +14,6 @@ const pnv = process.env;
 let passHash = (password) => {
   return bcrypt.hashSync(password, parseInt(pnv.SALT));
 };
-exports.CreateBillingMngr = async (data) => {
-  try {
-    const account = await biller.findOne({
-      $or: [{ username: data.username }, { email: data.email }],
-    });
-    if (account) {
-      const errors = {};
-      if (account.username === data.username) {
-        errors.acc_name = "Username is already taken.";
-      }
-      if (account.email === data.email) {
-        errors.email = "Email is already taken.";
-      }
-      return { success: false, errors };
-    } else {
-      let newBillMngr = new biller();
-      newBillMngr.username = data.username;
-      newBillMngr.password = passHash(data.password);
-      newBillMngr.contact = data.contact;
-      newBillMngr.name = `${data.fname} ${data.lastname}`;
-      newBillMngr.email = data.email;
-      newBillMngr.address = data.address;
-      newBillMngr.dateCreated = new Date();
-
-      return newBillMngr
-        .save()
-        .then((result) => {
-          if (result) {
-            return { success: true, message: "New Biller already saved" };
-          }
-        })
-        .catch((err) => {
-          return { success: false, error: "There is an error" + err };
-        });
-    }
-  } catch (err) {
-    console.error(err);
-    return {
-      success: false,
-      message: "An error occurred while creating the account.",
-    };
-  }
-};
 
 module.exports.AddBill = async (data) => {
   const results = [];
@@ -630,7 +587,7 @@ module.exports.GetPaymentsAccNum = async (acc_num) => {
     throw new Error("Error fetching payments");
   }
 };
-module.exports.getBillStatus = async () => {
+module.exports.getBillStatus = async (req, res) => {
   try {
     const totalBills = await bills.countDocuments();
     const unpaidBills = await bills.countDocuments({
@@ -638,10 +595,27 @@ module.exports.getBillStatus = async () => {
     });
     const paidBills = await bills.countDocuments({ payment_status: "Paid" });
 
-    return { totalBills, unpaidBills, paidBills };
+    const totalInactiveConsumers = await Client.countDocuments({
+      status: "Inactive",
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todaysOverdueBills = await bills.countDocuments({
+      due_date: { $lte: today },
+      payment_status: "Unpaid",
+    });
+
+    return {
+      totalBills,
+      unpaidBills,
+      paidBills,
+      totalInactiveConsumers,
+      todaysOverdueBills,
+    };
   } catch (error) {
     console.error("Error fetching bills status:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 

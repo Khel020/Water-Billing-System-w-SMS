@@ -85,6 +85,16 @@ route.get("/status", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+route.get("/getBillStatus", async (req, res) => {
+  try {
+    console.log("Getting Bill Status");
+    const stats = await cashier.getBillStatus();
+    res.json(stats);
+  } catch (error) {
+    console.error("Error fetching client statistics:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
 route.post(
   "/newPayment",
   auth.BillerOnly,

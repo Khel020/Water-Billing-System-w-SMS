@@ -4,10 +4,17 @@ const controller = require("../controllers/adminController.js");
 const customerctrl = require("../controllers/clientController.js");
 const ratectrl = require("../controllers/ratesController.js");
 const auth = require("../middleware/Auth.js");
-const multer = require("multer"); // Multer for file uploads
+
 module.exports = route;
 
-route.get("/customers/:acc_number", auth.AdminOnly, (req, res) => {
+route.post("/addAccounts", (req, res) => {
+  console.log("Adding Accounts..");
+  console.log(req.body);
+  controller.CreateAccounts(req.body).then((result) => {
+    res.send(result);
+  });
+});
+route.get("/customers/:acc_number", auth.AdminOrCS_Officer, (req, res) => {
   console.log("Getting Customer Info");
   console.log(req.params);
   customerctrl.GetClientsByAccNum(req.params).then((result) => {
@@ -48,7 +55,7 @@ route.post("/newclient", (req, res) => {
     res.send(result);
   });
 });
-route.post("/addDataEntry", (req, res) => {
+route.post("/addDataUploader", (req, res) => {
   console.log("Adding New Client");
   console.log(req.body);
   controller.CreateDataEntry(req.body).then((result) => {
