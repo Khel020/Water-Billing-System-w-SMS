@@ -13,33 +13,29 @@ let passHash = (password) => {
 
 exports.CreateUser = async (data) => {
   try {
-    // Check if the user is in the client collection (consumer)
+    // Step 1: Check if the user is a valid consumer (exists in the client collection)
     const checkInClient = await client.findOne({
-      $or: [
-        { accountName: data.username },
-        { acc_num: data.acc_num },
-        { meter_num: data.meter_num },
-      ],
+      accountName: data.username,
+      acc_num: data.acc_num,
     });
 
-    if (!checkInClient) {
-      return { success: false, message: "User is not a consumer" };
+    if (!checkInClient || checkInClient === null) {
+      console.log("User not found in the client collection.");
+      return { success: false, message: "You're not a consumer" };
     }
 
-    // Check if the user already exists in the user collection
+    // Step 2: Check if the user already exists in the user collection
     const account = await user.findOne({
       $or: [
         { username: data.username },
+        { name: `${data.fname} ${data.lastname}` },
         { acc_num: data.acc_num },
         { meter_num: data.meter_num },
         { email: data.email },
       ],
     });
 
-    console.log("Account found in users: ", account);
-    console.log("Account Found in Consumers", checkInClient);
-
-    // If account exists, check for conflicts
+    // Step 3: Handle duplicate entries
     if (account) {
       const errors = {};
       if (account.username === data.username) {
@@ -48,20 +44,25 @@ exports.CreateUser = async (data) => {
       if (account.acc_num === data.acc_num) {
         errors.acc_num = "Account Number is already taken.";
       }
-      if (String(account.meter_num) === data.meter_num) {
+      if (account.name === `${data.fname} ${data.lastname}`) {
+        errors.name = "This name is already registered.";
+      }
+      if (String(account.meter_num) === String(data.meter_num)) {
         errors.meter_num = "Meter Number is already taken.";
       }
       if (account.email === data.email) {
         errors.email = "Email is already taken.";
       }
-      console.log({ errors });
+
       return { success: false, errors };
     }
 
-    // Create a new user if no conflicts
+    // Step 4: Create a new user if no conflicts
     const NewUser = new user({
       username: data.username,
       password: passHash(data.password),
+      lastname: data.lastname,
+      fname: data.fname,
       name: `${data.fname} ${data.lastname}`, // Concatenate first and last name
       contact: data.contact,
       acc_num: data.acc_num,
@@ -71,21 +72,23 @@ exports.CreateUser = async (data) => {
       dateCreated: new Date(),
     });
 
-    // Save the new user to the database
+    // Step 5: Save the new user to the database
     const result = await NewUser.save();
+
     if (result) {
-      return { success: true };
+      return { success: true, message: "User registered successfully!" };
     } else {
-      return { success: false, message: "Failed to save the new user" };
+      return { success: false, message: "Failed to save the new user." };
     }
   } catch (err) {
-    console.error(err);
+    console.error("Error in CreateUser:", err);
     return {
       success: false,
       message: "An error occurred while creating the account.",
     };
   }
 };
+
 exports.GetAllUsers = async (data) => {
   return await user
     .find({})

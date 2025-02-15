@@ -16,6 +16,7 @@ route.post("/newUser", (req, res) => {
   console.log("Adding New Client");
   console.log(req.body);
   controller.CreateUser(req.body).then((result) => {
+    console.log(result);
     res.send(result);
   });
 });

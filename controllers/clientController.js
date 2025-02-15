@@ -285,17 +285,26 @@ exports.generateAccountNumber = async (data) => {
   let zone = data.zone;
   let c_type;
   let book = 1; // Default starting book
-  let sequenceNumber = 1; // Start with 001
+  let sequenceNumber = data.house_no; // Start with 001
 
   // Map client type to group classification numbers
   switch (data.c_type) {
     case "Residential":
       c_type = 102;
       break;
+    case "Res-Boton":
+      c_type = 103;
+      break;
+    case "Res-Inlagadian":
+      c_type = 104;
+      break;
     case "Government":
       c_type = 202;
       break;
     case "Commercial":
+      c_type = 303;
+      break;
+    case "Industrial":
       c_type = 303;
       break;
     case "Commercial_A":
@@ -310,9 +319,14 @@ exports.generateAccountNumber = async (data) => {
     case "Bulk":
       c_type = 402;
       break;
-    case "Industrial":
-      c_type = 503;
+    case "Bulk1":
+      c_type = 403;
       break;
+    case "Bulk2":
+      c_type = 404;
+
+      break;
+
     default:
       throw new Error("Invalid client type");
   }
