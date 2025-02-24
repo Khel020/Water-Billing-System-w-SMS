@@ -1,32 +1,22 @@
 const mongoose = require("mongoose");
 const AutoIncrement = require("mongoose-sequence")(mongoose);
+
 let Payments = new mongoose.Schema({
   processBy: {
     type: String,
-    require: true,
+    required: true,
   },
   billNo: [Number],
   acc_num: {
     type: String,
-    require: true,
   },
   accountName: {
     type: String,
-    require: true,
+    required: true,
   },
   address: {
-    house_num: {
-      type: Number,
-      require: true,
-    },
-    purok: {
-      type: Number,
-      require: true,
-    },
-    brgy: {
-      type: String,
-      require: true,
-    },
+    type: String,
+    required: true,
   },
   paymentDate: {
     type: Date,
@@ -34,33 +24,33 @@ let Payments = new mongoose.Schema({
   },
   amountDue: {
     type: Number,
-    require: true,
+    required: true,
   },
-
   tendered: {
     type: Number,
-    require: true,
+    required: true,
   },
   balance: {
     type: Number,
   },
   change: {
     type: Number,
-    require: true,
+    required: true,
   },
   others: {
     type: String,
-    require: true,
   },
   arrears: {
     type: String,
-    require: true,
   },
   OR_NUM: {
-    type: Number, // Make sure this matches your increment field
-    unique: true, // Ensures OR_NUM is unique
+    type: Number,
+    unique: true,
   },
 });
+
+// Enable Auto Increment for OR_NUM
 Payments.plugin(AutoIncrement, { inc_field: "OR_NUM" });
+
 const payments = mongoose.model("Payments", Payments);
 module.exports = payments;

@@ -63,7 +63,7 @@ let billSchema = new mongoose.Schema({
   totalDue: {
     type: Number,
     required: true,
-    default: 0.0,
+    default: 0,
     min: [0, "Total Due cannot be negative"],
   },
   p_charge: {
@@ -73,7 +73,7 @@ let billSchema = new mongoose.Schema({
   },
   payment_status: {
     type: String,
-    enum: ["Unpaid", "Paid", "Partial"],
+    enum: ["Unpaid", "Paid", "Partial", "Overdue"],
     required: [true, "Payment Status is required!"],
     default: "Unpaid",
   },
@@ -92,12 +92,16 @@ let billSchema = new mongoose.Schema({
     type: String,
     enum: [
       "Residential",
-      "Commercial",
+      "Res-Inlagaidan",
+      "Res-Boton",
+      "Commercial/Industrial",
       "Commercial_A",
       "Commercial_B",
       "Commercial_C",
       "Government",
-      "Industrial",
+      "Bulk",
+      "Bulk1",
+      "Bulk2",
     ],
     required: [true, "Category is required!"],
   },

@@ -7,7 +7,7 @@ const route = exp.Router();
 const bcrypt = require("bcrypt");
 const pnv = process.env;
 
-//TODO: Creating Client/ Add Client
+//TODO: UPLOAD BUNCH CLIENT
 exports.CreateClient = async (data) => {
   const results = [];
   try {
@@ -43,8 +43,6 @@ async function CreateClient(clientData) {
       };
     }
 
-    const totalBalance = parseFloat(clientData.installation_fee) || 0; // Use fallback value if undefined or null
-
     let newClient = new client({
       acc_num: clientData.accountNumber,
       accountName: clientData.accountName,
@@ -62,7 +60,9 @@ async function CreateClient(clientData) {
       zone: clientData.zone,
       sequenceNumber: clientData.seq_num,
       dateCreated: clientData.dateCreated,
-      totalBalance: totalBalance,
+      dateApplied: clientData.date_applied,
+      paidInspection: true,
+      paidInstallation: true,
     });
 
     const result = await newClient.save();
@@ -77,6 +77,37 @@ async function CreateClient(clientData) {
   }
 }
 
+exports.AddClient = async (data) => {
+  try {
+    const existingClient = await client.findOne({
+      $or: [{ acc_num: data.accountNumber }, { accountName: data.accountName }],
+    });
+
+    if (existingClient) {
+      return {
+        error:
+          "Account number or account name is already taken. Please use a unique value.",
+      };
+    }
+    let newClient = new client({
+      acc_num: data.accountNumber,
+      accountName: data.accountName,
+      contact: data.contact,
+      initial_read: data.initial_read,
+      c_address: data.address,
+      client_type: data.client_type,
+      inspec_date: data.inspec_date,
+      inspec_fee: data.inspection_fee,
+      zone: data.barangay,
+      advancePayment: 0,
+      dateApplied: data.date_applied,
+      dateCreated: data.dateCreated,
+    });
+    const result = await newClient.save();
+  } catch (err) {
+    return { error: `Error creating client: ${err.message}` }; // Proper error handling
+  }
+};
 //TODO: Get all the client
 exports.GetAllClients = async () => {
   return await client
@@ -90,6 +121,56 @@ exports.GetAllClients = async () => {
       return { error: "There is an error" };
     });
 };
+exports.GettingClients = async () => {
+  try {
+    const totalPending = await client.countDocuments({ status: "Pending" });
+    const totalApproved = await client.countDocuments({ status: "Approved" });
+    const totalInstalling = await client.countDocuments({
+      status: "Installing",
+    });
+    const totalInstalled = await client.countDocuments({ status: "Installed" });
+
+    return {
+      totalPending,
+      totalApproved,
+      totalInstalling,
+      totalInstalled,
+    };
+  } catch (error) {
+    return { error: "There is an error retrieving client counts" };
+  }
+};
+exports.GettingApplicants = async () => {
+  try {
+    const statusOrder = {
+      Pending: 1,
+      Approved: 2,
+      Installing: 3,
+      Installed: 4,
+    };
+
+    const applicants = await client
+      .find({})
+      .sort({
+        status: 1, // Sort alphabetically (not by custom order yet)
+        dateApplied: -1, // Sort by dateApplied (latest first)
+      })
+      .lean(); // Convert to plain objects for performance
+
+    // Manually sort using JavaScript (since MongoDB doesn't support custom order directly)
+    applicants.sort((a, b) => {
+      return statusOrder[a.status] - statusOrder[b.status];
+    });
+
+    return {
+      sortedApplicants: applicants,
+    };
+  } catch (error) {
+    console.error(error); // Log the error for debugging
+    return { error: "There is an error retrieving applicants" };
+  }
+};
+
 //TODO: Update Using Acc Num
 exports.UpdateClientByAccNum = async (data) => {
   const clientID = data._id;
@@ -147,7 +228,8 @@ exports.GetClientsByAccNum = async (data) => {
     if (!hasClientID) {
       return res.status(404).json({ message: "Client not found" });
     }
-    console.log("Customer Info", hasClientID);
+    const latestbill = await bill.findOne({ acc_num: data.acc_num });
+
     return hasClientID;
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -203,7 +285,7 @@ exports.ConsumersWithBill = async () => {
       const allClientsWithBills = [...updatedClients, ...clientsWithoutBills];
 
       const sortedClients = allClientsWithBills.sort((a, b) => {
-        const statusOrder = { Inactive: 1, Pending: 2, Active: 3 };
+        const statusOrder = { Inactive: 1, New: 2, Pending: 3, Active: 4 };
 
         const aStatusPriority = statusOrder[a.status];
         const bStatusPriority = statusOrder[b.status];
@@ -226,6 +308,12 @@ exports.ConsumersWithBill = async () => {
           console.log(`Comparing dates: ${bDate} - ${aDate}`);
           return bDate - aDate; // Newest date first
         }
+        if (a.status === "New" && b.status === "New") {
+          const aDate = new Date(a.dateCreated);
+          const bDate = new Date(b.dateCreated);
+          console.log(`Comparing dates: ${bDate} - ${aDate}`);
+          return bDate - aDate; // Newest date first
+        }
 
         return 0;
       });
@@ -233,7 +321,7 @@ exports.ConsumersWithBill = async () => {
       return sortedClients;
     } else {
       return allClients.sort((a, b) => {
-        const statusOrder = { Inactive: 1, Pending: 2, Active: 3 };
+        const statusOrder = { Inactive: 1, New: 2, Pending: 3, Active: 4 };
 
         const aStatusPriority = statusOrder[a.status];
         const bStatusPriority = statusOrder[b.status];
@@ -245,6 +333,12 @@ exports.ConsumersWithBill = async () => {
 
         // If both are active, sort by latest `dateCreated` (newest first)
         if (a.status === "Active" && b.status === "Active") {
+          const aDate = new Date(a.dateCreated);
+          const bDate = new Date(b.dateCreated);
+          console.log(`Comparing dates: ${bDate} - ${aDate}`);
+          return bDate - aDate; // Newest date first
+        }
+        if (a.status === "New" && b.status === "New") {
           const aDate = new Date(a.dateCreated);
           const bDate = new Date(b.dateCreated);
           console.log(`Comparing dates: ${bDate} - ${aDate}`);
@@ -278,14 +372,14 @@ exports.generateAccountNumber = async (data) => {
   // Find the latest consumer in the specified zone
   const latestConsumer = await client
     .findOne({ zone: data.zone })
-    .sort({ sequenceNumber: -1 })
+    .sort({ book: -1 }) // Get the latest book number
     .exec();
 
-  console.log("latest Consumer", latestConsumer);
-  let zone = data.zone;
+  console.log("Latest Consumer", latestConsumer);
+  console.log("Data GENERATE ACC", data);
+  let zone = data.barangay; // House number as the last part of the account number
   let c_type;
   let book = 1; // Default starting book
-  let sequenceNumber = data.house_no; // Start with 001
 
   // Map client type to group classification numbers
   switch (data.c_type) {
@@ -301,10 +395,7 @@ exports.generateAccountNumber = async (data) => {
     case "Government":
       c_type = 202;
       break;
-    case "Commercial":
-      c_type = 303;
-      break;
-    case "Industrial":
+    case "Commercial/Industial":
       c_type = 303;
       break;
     case "Commercial_A":
@@ -324,39 +415,35 @@ exports.generateAccountNumber = async (data) => {
       break;
     case "Bulk2":
       c_type = 404;
-
       break;
-
     default:
       throw new Error("Invalid client type");
   }
-  console.log("Latest Consumer", latestConsumer);
-  if (latestConsumer) {
-    // Increment the sequence number
-    sequenceNumber = latestConsumer.sequenceNumber + 1;
 
-    // Check if sequence number exceeds 999
-    if (sequenceNumber > 999) {
-      book = latestConsumer.book + 1; // Move to the next book
-      sequenceNumber = 1; // Reset sequence to 001
-    } else {
-      book = latestConsumer.book; // Keep the current book
+  // Determine book number
+  if (latestConsumer) {
+    book = latestConsumer.book; // Retain the latest book number
+    const consumersInBook = await client.countDocuments({
+      zone: data.zone,
+      book: book,
+    });
+
+    // If consumers in current book exceed a limit (e.g., 999), increment book
+    if (consumersInBook >= 999) {
+      book += 1;
     }
   }
 
-  // Format the sequence number as three digits (e.g., 001, 002)
-  const formattedSequence = String(sequenceNumber).padStart(3, "0");
-
   // Combine all parts to form the account number
-  const accountNumber = `${zone}${book}-${c_type}-${formattedSequence}`;
+  const accountNumber = `${zone}${book}-${c_type}-${data.houseNum}`;
 
   const result = {
     acc_num: accountNumber,
-    seq_num: formattedSequence,
     book: book,
   };
   return { result };
 };
+
 exports.GetforActivation = async () => {
   try {
     // Get the current date to compare activation dates
@@ -379,18 +466,24 @@ exports.UpdatePending = async (data) => {
   try {
     console.log("For Update", data);
     console.log("Updating");
+
     const result = await client.findOneAndUpdate(
-      { acc_num: data.acc_num },
-      { status: data.status },
-      { new: true }
+      { acc_num: data.acc_num }, // Find by account number
+      {
+        status: data.status,
+        dateActivated: Date.now(), // Set the activation date to now
+      },
+      { new: true } // Return the updated document
     );
+
     console.log("RESULT", result);
-    return result; // Return the updated result if needed
+    return result; // Return the updated result
   } catch (error) {
     console.error("Error updating status:", error);
     throw error; // Optionally, rethrow the error for further handling
   }
 };
+
 exports.GetForDisconnection = async () => {
   try {
     const ForDisconnect = await client.find({
@@ -419,5 +512,124 @@ exports.getClientwithBalance = async () => {
     return {
       error: "An error occurred while fetching the data. Please try again.",
     };
+  }
+};
+exports.GetConsumerForSMS = async () => {
+  try {
+    console.log("📡 Fetching Consumers for SMS...");
+
+    // 🗓️ Get the current date at midnight (00:00:00)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // 🗓️ Get the end of today (23:59:59) to include the whole day
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
+
+    // 🗓️ Get the date 3 days from today at midnight
+    const threeDaysDue = new Date(today);
+    threeDaysDue.setDate(today.getDate() + 3);
+    threeDaysDue.setHours(0, 0, 0, 0);
+
+    // 🗓️ Get the end of the near overdue day (23:59:59)
+    const endOfThreeDaysDue = new Date(threeDaysDue);
+    endOfThreeDaysDue.setHours(23, 59, 59, 999);
+
+    console.log("📆 TODAY:", today);
+    console.log("⚠️ END OF TODAY:", endOfToday);
+    console.log("⏳ NEAR OVERDUE START:", threeDaysDue);
+    console.log("⏳ NEAR OVERDUE END:", endOfThreeDaysDue);
+
+    // 🔍 Find new consumers using activation_date (only for today)
+    const newConsumers = await client.find({
+      dateActivated: {
+        $gte: today,
+        $lte: endOfToday, // Ensure it includes the whole day
+      },
+    });
+
+    // 🔍 Find consumers for disconnection
+    const forDisconnection = await client.find({
+      disconnection_status: "For Disconnection",
+    });
+
+    // 🔍 Find overdue bills (Unpaid and due today or earlier)
+    const overdueBills = await client.find({
+      last_billStatus: "Unpaid",
+      latest_billDue: {
+        $lte: endOfToday, // Includes everything before or exactly today
+      },
+    });
+
+    // 🔍 Find near overdue (Unpaid and due exactly 3 days from now)
+    const nearOverdueBills = await client.find({
+      last_billStatus: "Unpaid",
+      latest_billDue: {
+        $gte: threeDaysDue, // Start of near-overdue day
+        $lte: endOfThreeDaysDue, // End of near-overdue day
+      },
+    });
+
+    // 📋 Format final list
+    const consumersList = [
+      ...newConsumers.map((consumer) => ({
+        type: "New Consumer",
+        acc_num: consumer.acc_num,
+        acc_name: consumer.accountName,
+        address: consumer.c_address,
+        contact: consumer.contact,
+      })),
+      ...forDisconnection.map((consumer) => ({
+        type: "For Disconnection",
+        acc_num: consumer.acc_num,
+        acc_name: consumer.accountName,
+        address: consumer.c_address,
+        contact: consumer.contact,
+      })),
+      ...overdueBills.map((consumer) => ({
+        type: "Overdue",
+        acc_num: consumer.acc_num,
+        acc_name: consumer.accountName,
+        address: consumer.c_address,
+        contact: consumer.contact,
+      })),
+      ...nearOverdueBills.map((consumer) => ({
+        type: "Near Overdue",
+        acc_num: consumer.acc_num,
+        acc_name: consumer.accountName,
+        address: consumer.c_address,
+        contact: consumer.contact,
+      })),
+    ];
+
+    return consumersList;
+  } catch (error) {
+    console.error("❌ Error fetching consumers for SMS:", error);
+  }
+};
+exports.InspectedStatus = async (req, res) => {
+  try {
+    const acc_name = req.acc_name;
+    console.log(acc_name);
+    const updatedClient = await client.findOneAndUpdate(
+      { accountName: acc_name },
+      { status: "Inspected" }, // Update the inspected status
+      { new: true }
+    );
+
+    if (!updatedClient) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Client not found." });
+    }
+
+    res.json({
+      success: true,
+      message: "Inspection status updated successfully!",
+      data: updatedClient,
+    });
+  } catch (error) {
+    console.error("Error updating inspected status:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };

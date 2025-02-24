@@ -150,7 +150,7 @@ module.exports.orgLogin = async (req) => {
       returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
       returnBody.type = userType;
       return { success: true, returnBody: returnBody };
-    } else if (userType === "data entry staff") {
+    } else if (userType === "Uploader") {
       returnBody.token = makeToken({
         user_id: user._id,
         accountName: user.name,

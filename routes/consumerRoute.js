@@ -5,6 +5,19 @@ const auth = require("../middleware/Auth.js");
 
 module.exports = route;
 
+route.get("/consumerForSMS", async (req, res) => {
+  try {
+    console.log("Fetching Consumers for SMS...");
+
+    const result = await controller.GetConsumerForSMS();
+    console.log("Result", result);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error fetching consumers for SMS:", error);
+
+    res.status(500).json({ message: "Failed to retrieve consumer for SMS." });
+  }
+});
 route.get("/clients", (req, res) => {
   controller.ConsumersWithBill(req.body).then((result) => {
     res.send(result);

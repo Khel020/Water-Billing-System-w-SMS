@@ -366,27 +366,30 @@ module.exports.calculateChange = async (data) => {
 
     // Find the client by account number
     const client = await Client.findOne({ acc_num: data.acc_num }).exec();
-
     if (!client) {
       return { success: false, message: "Client not found" };
     }
 
-    const newBalance = parseFloat(client.totalBalance - data.tendered).toFixed(
-      2
-    );
+    // Convert all relevant values to floats
+    const tenderedAmount = parseFloat(data.tendered) || 0;
+    const installFee = parseFloat(data.installFee) || 0;
+    const inspectionFee = parseFloat(data.inspectionFee) || 0;
+    const totalBalance = parseFloat(client.totalBalance) || 0;
+
+    // Calculate the total due including additional fees
+    const totalDue = totalBalance + installFee + inspectionFee;
+    let newBalance = totalDue - tenderedAmount;
+
+    // Ensure two decimal places
+    newBalance = parseFloat(newBalance.toFixed(2));
     let change = 0;
 
     if (newBalance < 0) {
-      // Calculate the absolute value of the negative balance (i.e., the change)
-      change = parseFloat(Math.abs(newBalance).toFixed(2));
+      // Convert negative balance to change amount
+      change = Math.abs(newBalance);
 
-      // If the change is less than 1 peso, round it down to 0
-      if (change < 0) {
-        change = 0;
-      } else {
-        // Optionally round to the nearest whole peso if it's >= 1 peso
-        change = Math.round(change);
-      }
+      // Ensure change is properly rounded and non-negative
+      change = change < 1 ? 0 : Math.round(change);
     }
 
     return { success: true, change };
@@ -425,7 +428,7 @@ module.exports.AddPayment = async (data) => {
         tendered: data.tendered,
         billNo: [], // Initialize empty list for bill numbers
         amountDue: 0, // This will be updated to the total amount due
-        change: 0, // To be calculated
+        change: data.totalChange, // To be calculated
         balance: 0, // To be calculated
         processBy: account,
       });
@@ -475,8 +478,6 @@ module.exports.AddPayment = async (data) => {
 
       // Finalize the payment record
       paymentRecord.amountDue = parseFloat(totalDue.toFixed(2));
-      paymentRecord.change =
-        remainingPayment > 0 ? remainingPayment.toFixed(2) : 0;
       paymentRecord.balance = parseFloat(totalBalance.toFixed(2)); // Ensure balance is a number with 2 decimal places
       paymentRecord.billNo = billNumbers; // Save the list of bill numbers
 
@@ -499,16 +500,11 @@ module.exports.AddPayment = async (data) => {
         { acc_num: data.acc_num },
         {
           totalBalance: totalBalance,
-          advancePayment: data.advTotalAmount,
         },
         { new: true }
       );
 
       console.log("clientUpdateResult", clientUpdateResult);
-
-      console.log(
-        `Client updated: Total Balance: ${totalBalance}, Advance Payment: ${data.advTotalAmount}`
-      );
 
       // Activate the client if they were inactive or marked for disconnection
       if (
@@ -551,12 +547,10 @@ module.exports.AddPayment = async (data) => {
 
       await logEntry.save(); // Save the log entry to the database
 
-      // Update the client's balance to 0 since there are no bills
       await Client.findOneAndUpdate(
         { acc_num: data.acc_num },
         {
           totalBalance: 0,
-          advancePayment: data.advTotalAmount,
         },
         { new: true }
       );

@@ -104,6 +104,9 @@ async function validateSingleBill(billData) {
   if (!clientExists) {
     return `Client with account number ${billData.acc_num} and name ${billData.accountName} does not exist.`;
   }
+  if (clientExists.status == "Pending") {
+    return `Client with account number ${billData.acc_num} and name ${billData.accountName} Not yet activated`;
+  }
 
   // Check if a bill with the same account number, reading date, and due date already exists (to prevent duplicates)
   const billExists = await bills.findOne({
@@ -121,18 +124,8 @@ async function validateSingleBill(billData) {
 }
 async function processSingleBill(billData) {
   try {
-    // Get the current date and the due date
     const currentDate = new Date();
-    const dueDate = new Date(billData.due_date); // Ensure correct format
-
-    // Calculate the total due with penalty if the due date has passed
-    let totalDue = parseFloat(billData.totalDue);
-
-    // Check if the current date is past the due date
-    if (currentDate > dueDate) {
-      const penaltyCharge = 0.1 * totalDue; // Calculate 10% penalty
-      totalDue += penaltyCharge; // Add penalty to total due
-    }
+    const dueDate = new Date(billData.due_date);
 
     // Calculate consumption
     const consumption = billData.present_read - billData.prev_read || 0;
@@ -144,31 +137,36 @@ async function processSingleBill(billData) {
       due_date: dueDate,
       accountName: billData.accountName,
       present_read: billData.present_read,
-      prev_read: billData.prev_read || 0, // Optional previous reading
-      totalDue: totalDue, // Updated total amount due
+      prev_read: billData.prev_read || 0,
+      totalDue: billData.totalDue,
       arrears: billData.arrears || 0,
       payment_status: "Unpaid",
-      remarks: billData.remarks || "", // Optional remarks
-      consumption: consumption, // Added consumption field
-      category: billData.category || "", // Added category field
-      currentBill: totalDue, // Added currentBill field
+      remarks: billData.remarks || "",
+      consumption: consumption,
+      category: billData.category || "",
+      currentBill: billData.currentBill,
     });
 
     const savedBill = await newBill.save();
 
-    // Update the client's total balance
-    const clientExists = await Client.findOne({
-      acc_num: billData.acc_num,
-    });
+    // Update client details
+    const clientExists = await Client.findOne({ acc_num: billData.acc_num });
 
-    const newTotalBalance =
-      parseFloat(clientExists.totalBalance || 0) + totalDue; // Use the updated totalDue
+    if (clientExists) {
+      const newTotalBalance =
+        parseFloat(clientExists.totalBalance || 0) + billData.totalDue;
 
-    await Client.findOneAndUpdate(
-      { acc_num: billData.acc_num },
-      { totalBalance: newTotalBalance },
-      { new: true }
-    );
+      await Client.findOneAndUpdate(
+        { acc_num: billData.acc_num },
+        {
+          totalBalance: newTotalBalance,
+          last_billDate: billData.reading_date,
+          last_billStatus: "Unpaid",
+          latest_billDue: billData.due_date,
+        },
+        { new: true }
+      );
+    }
 
     // Check for 3 unpaid bills
     const unpaidBillsCount = await bills.countDocuments({
@@ -176,7 +174,7 @@ async function processSingleBill(billData) {
       payment_status: "Unpaid",
     });
 
-    // If the client has 3 or more unpaid bills, update status to "For Disconnection"
+    // If 3+ unpaid bills, update status to "For Disconnection"
     if (unpaidBillsCount >= 3) {
       await Client.findOneAndUpdate(
         { acc_num: billData.acc_num },
@@ -187,13 +185,13 @@ async function processSingleBill(billData) {
 
     return {
       success: true,
-      bill: savedBill, // Include the saved bill information
+      bill: savedBill,
     };
   } catch (err) {
     console.error(
       `Error processing bill for account ${billData.acc_num}:`,
       err
-    ); // Log error
+    );
     return {
       error: `Error processing bill for account ${billData.acc_num}: ${err.message}`,
     };

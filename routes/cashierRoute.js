@@ -66,7 +66,7 @@ route.get("/findBillPay/:account", auth.BillerOnly, async (req, res) => {
         .status(404)
         .json({ message: "No bills found for this account." });
     }
-
+    console.log("RESPONSE", response);
     // Send the response if data is found
     res.json(response);
   } catch (error) {
@@ -108,15 +108,19 @@ route.post(
     const usertype = req.role;
     // Prepare the payment data, including the username
     const paymentData = {
+      billNo: req.body.billNo,
       acc_num: req.body.acc_num,
       acc_name: req.body.acc_name,
       address: req.body.address,
       p_date: req.body.p_date,
       arrears: req.body.arrears,
+      totalChange: req.body.totalChange,
+      balance: req.body.balance,
       tendered: req.body.tendered,
       advTotalAmount: req.body.advTotalAmount, // Add any additional fields as necessary
       processedBy: username, // Include the username here
       role: usertype,
+      paymentType: req.body.paymentType,
     };
 
     // Call the AddPayment method with the prepared paymentData

@@ -1,16 +1,16 @@
 const mongoose = require("mongoose");
 
 let clientSchema = new mongoose.Schema({
+  dateApplied: {
+    type: Date,
+    required: true,
+  },
   acc_num: {
     type: String,
-    required: true,
+
     unique: true,
   },
   accountName: {
-    type: String,
-    required: true,
-  },
-  zone: {
     type: String,
     required: true,
   },
@@ -21,45 +21,49 @@ let clientSchema = new mongoose.Schema({
   },
   c_address: {
     type: String,
-    require: true,
+    required: true, // Fixed typo (require → required)
   },
   meter_brand: {
     type: String,
-    require: true,
   },
   meter_num: {
-    type: Number,
+    type: String, // Changed from Number to String (to preserve leading zeros)
     trim: true,
-    required: [true, "Required!"],
   },
   pipe_size: {
     type: String,
     trim: true,
-    required: [true, "Required!"],
   },
   status: {
     type: String,
     trim: true,
-    enum: ["Active", "Inactive", "Pending"],
+    enum: [
+      "Pending",
+      "Inspected",
+      "Approved",
+      "Installing",
+      "Installed",
+      "Pending Activation",
+      "Activated",
+    ],
     default: "Pending",
   },
   disconnection_status: {
     type: String,
     enum: ["None", "For Disconnection", "Disconnected", "Paid"],
-    default: "None", // Default status if the client is not set for disconnection
+    default: "None",
   },
   dc_date: {
     type: Date,
   },
   contact: {
-    type: String, // Change to String
+    type: String,
     trim: true,
     required: [true, "Required!"],
     maxLength: [11, "Contact number must be 11 digits"],
     validate: {
       validator: function (value) {
-        // Validate that it is numeric and 11 digits long
-        return /^\d{11}$/.test(value);
+        return /^\d{11}$/.test(value); // Ensures it's numeric and 11 digits
       },
       message: "Contact number must be 11 digits and numeric.",
     },
@@ -67,30 +71,32 @@ let clientSchema = new mongoose.Schema({
   client_type: {
     type: String,
     trim: true,
-    required: [true, "Required!"],
   },
   initial_read: {
     type: Number,
   },
   install_date: {
     type: Date,
-    trim: true,
-    required: [true, "Required"],
   },
   install_fee: {
     type: Number,
-    trim: true,
-    required: [true, "Required"],
+  },
+  inspec_fee: {
+    type: Number,
+  },
+  inspection_date: {
+    type: Date,
+  },
+  paidInspection: {
+    type: Boolean,
+    default: false, // Updated when inspection fee is paid
+  },
+  paidInstallation: {
+    type: Boolean,
+    default: false, // Updated when installation fee is paid
   },
   activation_date: {
     type: Date,
-    trim: true,
-    required: [true, "Required"],
-  },
-  meter_installer: {
-    type: String,
-    trim: true,
-    required: [true, "Required"],
   },
   advancePayment: {
     type: Number,
@@ -98,25 +104,36 @@ let clientSchema = new mongoose.Schema({
   },
   last_billDate: {
     type: Date,
-    default: null, // Set default to null
+    default: null,
+  },
+  latest_billDue: {
+    type: Date,
+    default: null,
+  },
+  last_billStatus: {
+    type: String,
+    enum: ["Paid", "Unpaid", "Overdue"], // Optional: Add enum for clarity
   },
   totalBalance: {
     type: Number,
-    default: 0.0, // Set default to 0.0
+    default: 0, // Simplified from 0.0
   },
   isArchive: {
     type: Boolean,
-    default: false, // Default value for isArchive
+    default: false,
   },
   sequenceNumber: {
-    type: Number,
-  }, // Sequential number (001-999)
+    type: Number, // Sequential number (001-999)
+  },
   unpaidBills: {
     type: Number,
   },
   dateCreated: {
     type: Date,
     default: Date.now,
+  },
+  dateActivated: {
+    type: Date,
   },
 });
 

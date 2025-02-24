@@ -568,6 +568,7 @@ exports.getConsumerCollectionSummary = async (req, res) => {
           },
           totalBilled: { $sum: "$amountDue" },
           totalCollected: { $sum: { $subtract: ["$tendered", "$change"] } },
+          totalPenalties: { $sum: "$p_charge" }, // Total penalty
           outstanding: { $sum: "$balance" },
           lastPaymentDate: { $max: "$paymentDate" },
         },
@@ -579,6 +580,7 @@ exports.getConsumerCollectionSummary = async (req, res) => {
           accountName: "$_id.accountName",
           totalBilled: 1,
           totalCollected: 1,
+          totalPenalties: 1, // Ipakita ang kabuuang penalty
           outstanding: 1,
           lastPaymentDate: 1,
         },
@@ -595,6 +597,7 @@ exports.getConsumerCollectionSummary = async (req, res) => {
     });
   }
 };
+
 exports.GetLogs = async () => {
   try {
     const logs = await Logs.find();
