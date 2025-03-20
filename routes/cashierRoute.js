@@ -19,12 +19,27 @@ route.post("/addBiller", (req, res) => {
     res.send(result);
   });
 });
-route.post("/addbill", (req, res) => {
-  console.log("Adding Bill");
-  console.log("Request Body", req.body);
-  cashier.AddBill(req.body).then((result) => {
-    res.send(result);
-  });
+route.get("/findFees/:account", auth.BillerOnly, async (req, res) => {
+  try {
+    console.log("Finding bill for payment...", req.params.account);
+
+    // Pass the account parameter to the findBillsPayment function
+    const response = await cashier.findFees(req.params.account);
+
+    if (!response) {
+      return res
+        .status(404)
+        .json({ message: "No bills found for this account." });
+    }
+    console.log("RESPONSE", response);
+    // Send the response if data is found
+    res.json(response);
+  } catch (error) {
+    console.error("Error finding bill for payment:", error);
+
+    // Handle any errors
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
 });
 route.get("/getAllbills", (req, res) => {
   console.log("Getting All Bills");
@@ -95,6 +110,37 @@ route.get("/getBillStatus", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+route.post(
+  "/feePayments",
+  auth.BillerOnly,
+  auth.getUsernameFromToken,
+  (req, res) => {
+    // Access the username extracted by the middleware
+    const username = req.username; // Retrieve username from the req object
+    const usertype = req.role;
+    // Prepare the payment data, including the username
+    const paymentData = {
+      acc_name: req.body.applicant,
+      p_date: req.body.p_date,
+      amountDue: req.body.amountDue,
+      totalChange: req.body.change,
+      tendered: req.body.amount_paid,
+      processedBy: username, // Include the username here
+      role: usertype,
+      paymentType: req.body.paymentType,
+    };
+    console.log(paymentData);
+    cashier
+      .payFees(paymentData)
+      .then((result) => {
+        res.send(result);
+      })
+      .catch((error) => {
+        console.error("Error processing payment:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      });
+  }
+);
 route.post(
   "/newPayment",
   auth.BillerOnly,

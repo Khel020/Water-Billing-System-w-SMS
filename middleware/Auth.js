@@ -26,7 +26,6 @@ module.exports.tokenCheck = (req, res, next) => {
 
   try {
     req.user = jwt.verify(token[1], pnv.TOKEN_SECRET);
-    console.log("Token", req.user);
 
     // Checking if the token is expired
     if (Math.floor(Date.now() / 1000) >= req.user.expTKN) {
@@ -138,7 +137,6 @@ module.exports.BillerOnly = (req, res, next) => {
 };
 
 module.exports.Validation = (req, res) => {
-  console.log("Request Headers:", req.headers);
   const authHeader = req.headers.authorization;
 
   // Check if authorization header exists
@@ -205,8 +203,6 @@ module.exports.getUsernameFromToken = (req, res, next) => {
   try {
     const decodedToken = jwt.verify(token[1], pnv.TOKEN_SECRET);
 
-    console.log("Token", decodedToken);
-    // Checking if the token is expired
     if (Math.floor(Date.now() / 1000) >= decodedToken.exp) {
       // Use decodedToken.exp
       return res
@@ -217,7 +213,6 @@ module.exports.getUsernameFromToken = (req, res, next) => {
     // If the token is valid, store the username in req object
     req.username = decodedToken.accountName; // Store username
     req.role = decodedToken.type;
-    console.log("USERNAME", req.username); // Optional logging
 
     // Proceed to the next middleware or route handler
     next();

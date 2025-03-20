@@ -5,7 +5,7 @@ const crs = require("cors");
 const http = require("http");
 const cron = require("node-cron");
 const { Server } = require("socket.io");
-const { SerialPort, ReadlineParser } = require("serialport");
+const { SerialPort } = require("serialport");
 const bodyParser = require("body-parser");
 
 // Import routes

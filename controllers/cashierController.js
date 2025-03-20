@@ -1,4 +1,5 @@
 const biller = require("../models/Cashiers");
+const applicants = require("../models/applicantsModel");
 const bills = require("../models/BillsModel");
 const Rate = require("../models/ratesModel");
 const Logs = require("../models/LogsModel");
@@ -399,6 +400,58 @@ module.exports.calculateChange = async (data) => {
   }
 };
 
+module.exports.payFees = async (req, res) => {
+  try {
+    // Create a new Payment document using the data from the request
+    const paymentData = new Payment({
+      accountName: req.acc_name,
+      paymentDate: req.p_date,
+      change: req.totalChange,
+      amountDue: req.amountDue,
+      tendered: req.tendered,
+      paymentType: req.paymentType,
+      processBy: req.processedBy,
+    });
+
+    // Save the payment to the database
+    await paymentData.save();
+
+    // Determine new status and update the applicant accordingly,
+    // including setting the respective fee value to 0
+    let newStatus;
+    if (req.paymentType === "inspection") {
+      newStatus = "For Inspection";
+      // Update the status, set paid_inspection flag to true, and reset the inspection fee
+      await applicants.findOneAndUpdate(
+        { applicant_name: req.acc_name },
+        {
+          $set: { status: newStatus, paid_inspection: true, inspection_fee: 0 },
+        },
+        { new: true }
+      );
+    } else if (req.paymentType === "For Installation") {
+      newStatus = "For Installation";
+      // Update the status, set paid_installation flag to true, and reset the installation fee
+      await applicants.findOneAndUpdate(
+        { applicant_name: req.acc_name },
+        {
+          $set: {
+            status: newStatus,
+            paid_installation: true,
+            installation_fee: 0,
+          },
+        },
+        { new: true }
+      );
+    }
+
+    res.send({ success: true, payment: paymentData });
+  } catch (error) {
+    console.error("Error processing payment:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 module.exports.AddPayment = async (data) => {
   const results = [];
   const account = data.processedBy; // Make sure you're getting the username correctly
@@ -683,5 +736,53 @@ module.exports.adjustbill = async (billId, adjustmentData, adjustedBy) => {
   } catch (error) {
     console.error(`Error adjusting bill with ID ${billId}: ${error.message}`);
     throw new Error(`Failed to adjust bill: ${error.message}`);
+  }
+};
+module.exports.findFees = async (account) => {
+  try {
+    console.log("Search", account);
+    const applicant = await applicants.findOne({
+      applicant_name: account,
+    });
+
+    if (!applicant) {
+      return { success: false, message: "Applicant not found" };
+    }
+
+    // Check if inspection fee is still due (assuming fee > 0 means not yet paid)
+    if (applicant.inspection_fee > 0) {
+      return {
+        success: true,
+        paymentType: "inspection",
+        fee: applicant.inspection_fee,
+        inspection_fee: applicant.inspection_fee,
+        installation_fee: applicant.installation_fee || 0,
+        other_fees: applicant.other_fees || 0,
+      };
+    } else {
+      // Inspection fee is settled, check installation fee
+      if (applicant.installation_fee > 0) {
+        return {
+          success: true,
+          paymentType: "For Installation",
+          fee: applicant.installation_fee,
+          inspection_fee: applicant.inspection_fee || 0,
+          installation_fee: applicant.installation_fee,
+          other_fees: applicant.other_fees || 0,
+        };
+      } else {
+        // Both fees are settled
+        return {
+          success: true,
+          message: "The applicant is already settled",
+          inspection_fee: applicant.inspection_fee || 0,
+          installation_fee: applicant.installation_fee || 0,
+          other_fees: applicant.other_fees || 0,
+        };
+      }
+    }
+  } catch (error) {
+    console.error("Error finding fees:", error);
+    return { success: false, message: "Internal server error" };
   }
 };
