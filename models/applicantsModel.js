@@ -6,19 +6,17 @@ const applicantSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
-  firstname: {
+  classification: {
     type: String,
-    required: true,
     trim: true,
-  },
-  lastname: {
-    type: String,
-    required: true,
-    trim: true,
+    enum: ["Residential", "Comm/Indu/Bulk", "Government"],
   },
   address: {
     type: String,
     required: true,
+  },
+  email: {
+    type: String,
   },
   contact: {
     type: String,
@@ -40,8 +38,9 @@ const applicantSchema = new mongoose.Schema({
       "New",
       "For Inspection",
       "Inspected",
-      "Pending Approval",
       "For Installation",
+      "Pending Approval",
+      "Installing",
       "Installed",
     ],
     default: "New",
@@ -67,6 +66,22 @@ const applicantSchema = new mongoose.Schema({
   paid_installation: {
     type: Boolean,
     default: false,
+  },
+  isApprove: {
+    type: Boolean,
+    default: false,
+  },
+  officer_agency: {
+    type: String,
+  },
+  position: {
+    type: String,
+  },
+  business_name: {
+    type: String,
+  },
+  business_position: {
+    type: String,
   },
 });
 

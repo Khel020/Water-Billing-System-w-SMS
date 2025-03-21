@@ -23,8 +23,6 @@ route.post("/newApplicant", (req, res) => {
   });
 });
 route.get("/applicants", (req, res) => {
-  console.log("Aasdasdasd");
-
   applicants.getApplications(req.body).then((result) => {
     console.log("Result is", result);
     res.send(result);
@@ -44,10 +42,7 @@ route.put("/doneInspec/:account", (req, res) => {
   });
 });
 route.get("/getApplicants", (req, res) => {
-  console.log("Aasdasdasd");
-  console.log(req.body);
   applicants.GetTotalApplicants(req.body).then((result) => {
-    console.log("Result is", result);
     res.send(result);
   });
 });
@@ -61,4 +56,46 @@ route.put("/scheduleInstall", (req, res) => {
     console.log("Result is", result);
     res.send(result);
   });
+});
+route.get("/getPendingApprovals", (req, res) => {
+  applicants.getPendingApplicants(req.body).then((result) => {
+    console.log("Result is", result);
+    res.send(result);
+  });
+});
+route.get("/getInstallingApplicants", (req, res) => {
+  applicants
+    .getInstallingApplicants()
+    .then((result) => {
+      console.log("Installing Applicants:", result);
+      res.send(result);
+    })
+    .catch((error) => {
+      console.error("Error fetching installing applicants:", error);
+      res.status(500).send({ message: "Internal server error" });
+    });
+});
+route.put("/approveApplicant/:id", (req, res) => {
+  applicants
+    .approveApplicant(req.params.id, req.body)
+    .then((result) => {
+      console.log("Result is", result);
+      res.send(result);
+    })
+    .catch((error) => {
+      console.error("Error approving applicant:", error);
+      res.status(500).send({ message: "Internal server error" });
+    });
+});
+route.put("/doneInstallation/:id", (req, res) => {
+  applicants
+    .doneInstall(req.params.id, req.body)
+    .then((result) => {
+      console.log("Result is", result);
+      res.send(result);
+    })
+    .catch((error) => {
+      console.error("Error approving applicant:", error);
+      res.status(500).send({ message: "Internal server error" });
+    });
 });

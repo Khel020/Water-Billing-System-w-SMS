@@ -416,8 +416,6 @@ module.exports.payFees = async (req, res) => {
     // Save the payment to the database
     await paymentData.save();
 
-    // Determine new status and update the applicant accordingly,
-    // including setting the respective fee value to 0
     let newStatus;
     if (req.paymentType === "inspection") {
       newStatus = "For Inspection";
@@ -430,7 +428,7 @@ module.exports.payFees = async (req, res) => {
         { new: true }
       );
     } else if (req.paymentType === "For Installation") {
-      newStatus = "For Installation";
+      newStatus = "Pending Approval";
       // Update the status, set paid_installation flag to true, and reset the installation fee
       await applicants.findOneAndUpdate(
         { applicant_name: req.acc_name },
@@ -439,6 +437,7 @@ module.exports.payFees = async (req, res) => {
             status: newStatus,
             paid_installation: true,
             installation_fee: 0,
+            isApprove: true,
           },
         },
         { new: true }
@@ -771,7 +770,6 @@ module.exports.findFees = async (account) => {
           other_fees: applicant.other_fees || 0,
         };
       } else {
-        // Both fees are settled
         return {
           success: true,
           message: "The applicant is already settled",
