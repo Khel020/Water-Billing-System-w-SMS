@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 
 const applicantSchema = new mongoose.Schema({
+  application_number: {
+    type: String,
+
+    unique: true,
+  },
   applicant_name: {
     type: String,
     required: true,
@@ -21,11 +26,12 @@ const applicantSchema = new mongoose.Schema({
   contact: {
     type: String,
     required: true,
-    match: [/^\d{10,12}$/, "Invalid contact number"], // Validates phone number (10-12 digits)
+    match: [/^\d{10,12}$/, "Invalid contact number"],
   },
   date_applied: {
     type: Date,
     required: true,
+    default: Date.now,
   },
   date_of_birth: {
     type: Date,
@@ -42,6 +48,7 @@ const applicantSchema = new mongoose.Schema({
       "Pending Approval",
       "Installing",
       "Installed",
+      "Done",
     ],
     default: "New",
   },
@@ -83,6 +90,31 @@ const applicantSchema = new mongoose.Schema({
   business_position: {
     type: String,
   },
+});
+
+// Middleware to generate short application number before saving
+applicantSchema.pre("save", async function (next) {
+  if (!this.application_number) {
+    const today = new Date();
+    const yearMonth =
+      today.getFullYear().toString().slice(2) +
+      (today.getMonth() + 1).toString().padStart(2, "0");
+
+    // Count applicants created in the current month
+    const count = await this.constructor.countDocuments({
+      date_applied: {
+        $gte: new Date(today.getFullYear(), today.getMonth(), 1),
+        $lt: new Date(today.getFullYear(), today.getMonth() + 1, 1),
+      },
+    });
+
+    // Generate unique application number (APP-YYMM-XXX)
+    this.application_number = `APP-${yearMonth}-${String(count + 1).padStart(
+      3,
+      "0"
+    )}`;
+  }
+  next();
 });
 
 module.exports = mongoose.model("Applicant", applicantSchema);

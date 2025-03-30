@@ -402,52 +402,69 @@ module.exports.calculateChange = async (data) => {
 
 module.exports.payFees = async (req, res) => {
   try {
-    // Create a new Payment document using the data from the request
+    const {
+      acc_name,
+      p_date,
+      totalChange,
+      amountDue,
+      tendered,
+      paymentType,
+      processedBy,
+    } = req;
+
+    // Validate if tendered amount is enough
+    if (tendered < amountDue) {
+      return {
+        success: false,
+        message: "Insufficient payment",
+      };
+    }
+
+    // Create new payment record
     const paymentData = new Payment({
-      accountName: req.acc_name,
-      paymentDate: req.p_date,
-      change: req.totalChange,
-      amountDue: req.amountDue,
-      tendered: req.tendered,
-      paymentType: req.paymentType,
-      processBy: req.processedBy,
+      accountName: acc_name,
+      paymentDate: p_date,
+      change: totalChange,
+      amountDue,
+      tendered,
+      paymentType,
+      processBy: processedBy,
     });
 
-    // Save the payment to the database
+    // Save the payment record
     await paymentData.save();
 
     let newStatus;
-    if (req.paymentType === "inspection") {
+    let updateFields = {}; // Store updates for applicants
+
+    if (paymentType === "inspection") {
       newStatus = "For Inspection";
-      // Update the status, set paid_inspection flag to true, and reset the inspection fee
-      await applicants.findOneAndUpdate(
-        { applicant_name: req.acc_name },
-        {
-          $set: { status: newStatus, paid_inspection: true, inspection_fee: 0 },
-        },
-        { new: true }
-      );
-    } else if (req.paymentType === "For Installation") {
+      updateFields = {
+        status: newStatus,
+        paid_inspection: true,
+        inspection_fee: 0,
+      };
+    } else if (paymentType === "For Installation") {
       newStatus = "Pending Approval";
-      // Update the status, set paid_installation flag to true, and reset the installation fee
-      await applicants.findOneAndUpdate(
-        { applicant_name: req.acc_name },
-        {
-          $set: {
-            status: newStatus,
-            paid_installation: true,
-            installation_fee: 0,
-            isApprove: true,
-          },
-        },
-        { new: true }
-      );
+      updateFields = {
+        status: newStatus,
+        paid_installation: true,
+        installation_fee: 0,
+        isApprove: true,
+      };
     }
 
-    res.send({ success: true, payment: paymentData });
+    // Update applicant's status if payment is valid
+    await applicants.findOneAndUpdate(
+      { applicant_name: acc_name },
+      { $set: updateFields },
+      { new: true }
+    );
+
+    return { success: true, payment: paymentData };
   } catch (error) {
     console.error("Error processing payment:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    return { error: "Internal Server Error" };
   }
 };
 
@@ -740,45 +757,56 @@ module.exports.adjustbill = async (billId, adjustmentData, adjustedBy) => {
 module.exports.findFees = async (account) => {
   try {
     console.log("Search", account);
-    const applicant = await applicants.findOne({
-      applicant_name: account,
-    });
+
+    // Hanapin gamit ang $or para parehong application_number at applicant_name ma-search
+    const applicant = await applicants
+      .findOne({
+        $or: [{ application_number: account }, { applicant_name: account }],
+      })
+      .exec();
 
     if (!applicant) {
       return { success: false, message: "Applicant not found" };
     }
 
-    // Check if inspection fee is still due (assuming fee > 0 means not yet paid)
+    // Check kung may pending inspection fee
     if (applicant.inspection_fee > 0) {
       return {
         success: true,
         paymentType: "inspection",
+        application_number: applicant.application_number,
+        applicant_name: applicant.applicant_name,
         fee: applicant.inspection_fee,
         inspection_fee: applicant.inspection_fee,
         installation_fee: applicant.installation_fee || 0,
         other_fees: applicant.other_fees || 0,
       };
-    } else {
-      // Inspection fee is settled, check installation fee
-      if (applicant.installation_fee > 0) {
-        return {
-          success: true,
-          paymentType: "For Installation",
-          fee: applicant.installation_fee,
-          inspection_fee: applicant.inspection_fee || 0,
-          installation_fee: applicant.installation_fee,
-          other_fees: applicant.other_fees || 0,
-        };
-      } else {
-        return {
-          success: true,
-          message: "The applicant is already settled",
-          inspection_fee: applicant.inspection_fee || 0,
-          installation_fee: applicant.installation_fee || 0,
-          other_fees: applicant.other_fees || 0,
-        };
-      }
     }
+
+    // Check kung may pending installation fee
+    if (applicant.installation_fee > 0) {
+      return {
+        success: true,
+        paymentType: "For Installation",
+        application_number: applicant.application_number,
+        applicant_name: applicant.applicant_name,
+        fee: applicant.installation_fee,
+        inspection_fee: applicant.inspection_fee || 0,
+        installation_fee: applicant.installation_fee,
+        other_fees: applicant.other_fees || 0,
+      };
+    }
+
+    // Kapag bayad na lahat
+    return {
+      success: true,
+      message: "The applicant is already settled",
+      application_number: applicant.application_number,
+      applicant_name: applicant.applicant_name,
+      inspection_fee: applicant.inspection_fee || 0,
+      installation_fee: applicant.installation_fee || 0,
+      other_fees: applicant.other_fees || 0,
+    };
   } catch (error) {
     console.error("Error finding fees:", error);
     return { success: false, message: "Internal server error" };

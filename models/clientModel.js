@@ -37,15 +37,7 @@ let clientSchema = new mongoose.Schema({
   status: {
     type: String,
     trim: true,
-    enum: [
-      "Pending",
-      "Inspected",
-      "Approved",
-      "Installing",
-      "Installed",
-      "Pending Activation",
-      "Activated",
-    ],
+    enum: ["Pending", "Active", "Inactive"],
     default: "Pending",
   },
   disconnection_status: {
@@ -77,6 +69,9 @@ let clientSchema = new mongoose.Schema({
   },
   install_date: {
     type: Date,
+  },
+  installer: {
+    type: String,
   },
   install_fee: {
     type: Number,

@@ -38,9 +38,16 @@ exports.createApplication = async (data) => {
     }
 
     // Check if the contact number is already registered
-    const existingContact = await Applicant.findOne({ contact });
+    const existingContact = await Applicant.findOne({
+      contact,
+      applicant_name: { $ne: applicantName }, // Check only if name is different
+    });
+
     if (existingContact) {
-      return { success: false, message: "Contact number is already in use." };
+      return {
+        success: false,
+        message: "Contact number is already in use by another applicant.",
+      };
     }
 
     // **Government Client Type Check**
@@ -252,23 +259,23 @@ exports.deleteApplication = async (id) => {
 
 exports.Schedule = async (data) => {
   try {
-    // Hanapin ang applicant at i-update ang inspection_date field
     const updatedApplicant = await Applicant.findOneAndUpdate(
-      { applicant_name: data.applicant }, // Palitan ito kung gumagamit ka ng ibang identifier (e.g., _id)
+      { applicant_name: data.applicant }, // Ensure this field is correct
       { inspection_date: data.inspectionDate },
       { new: true } // Return the updated document
     );
 
     if (!updatedApplicant) {
-      throw new Error("Applicant not found");
+      return { success: false, message: "Applicant not found" };
     }
 
     return { success: true, applicant: updatedApplicant };
   } catch (error) {
     console.error("Error scheduling inspection:", error);
-    throw new Error("Internal Server Error");
+    return { success: false, message: "Internal Server Error" };
   }
 };
+
 exports.DoneInspection = async (account) => {
   try {
     const applicant = await Applicant.findOne({ applicant_name: account });
@@ -314,7 +321,18 @@ exports.ScheduleInstall = async (data) => {
   try {
     const { applicantName, installationDate, installationFee } = data;
 
-    // Find and update the applicant record in one step
+    if (
+      installationFee === undefined ||
+      installationFee === null ||
+      installationFee === 0
+    ) {
+      return {
+        success: false,
+        message: "Installation fee is required.",
+      };
+    }
+
+    // Find and update the applicant record
     const updatedApplicant = await Applicant.findOneAndUpdate(
       { applicant_name: applicantName },
       {

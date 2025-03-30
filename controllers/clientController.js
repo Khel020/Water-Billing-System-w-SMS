@@ -31,8 +31,8 @@ async function CreateClient(clientData) {
   try {
     const existingClient = await client.findOne({
       $or: [
-        { acc_num: clientData.accountNumber },
-        { accountName: clientData.accountName },
+        { acc_num: clientData.accountNumber }, // Unique dapat
+        { meter_num: clientData.meter_num }, // Unique dapat
       ],
     });
 
@@ -238,14 +238,15 @@ exports.GetClientsByAccNum = async (data) => {
 // Function to get sorted clients with or without bills
 exports.ConsumersWithBill = async () => {
   try {
+    // Fetch all clients and unique account numbers with bills
     const allClients = await client.find({}).exec();
-
     const billAccNumbers = await bill.distinct("acc_num").exec();
-
     const updatedClients = [];
 
+    // Process clients that have bills
     if (billAccNumbers && billAccNumbers.length > 0) {
       for (const acc_num of billAccNumbers) {
+        // Get the latest bill date for each account
         const billDetails = await bill
           .aggregate([
             { $match: { acc_num } },
@@ -261,12 +262,12 @@ exports.ConsumersWithBill = async () => {
 
         let last_billDate = null;
         if (billDetails.length > 0) {
-          const result = billDetails[0];
-          last_billDate = result.last_billDate || null;
+          last_billDate = billDetails[0].last_billDate || null;
         } else {
           console.log(`No bills found for account number: ${acc_num}`);
         }
 
+        // Update the client with the latest bill date
         const updatedClient = await client.findOneAndUpdate(
           { acc_num },
           { last_billDate },
@@ -278,81 +279,56 @@ exports.ConsumersWithBill = async () => {
         }
       }
 
+      // Find clients without bills
       const clientsWithoutBills = allClients.filter(
         (client) => !billAccNumbers.includes(client.acc_num)
       );
 
+      // Combine all clients
       const allClientsWithBills = [...updatedClients, ...clientsWithoutBills];
 
-      const sortedClients = allClientsWithBills.sort((a, b) => {
-        const statusOrder = { Inactive: 1, New: 2, Pending: 3, Active: 4 };
-
-        const aStatusPriority = statusOrder[a.status];
-        const bStatusPriority = statusOrder[b.status];
-
-        // Sort by status priority first
-        if (aStatusPriority !== bStatusPriority) {
-          return aStatusPriority - bStatusPriority;
-        }
-
-        // If both are active, sort by latest `dateCreated` (newest first)
-        if (a.status === "Pending" && b.status === "Pending") {
-          const aDate = new Date(a.dateCreated);
-          const bDate = new Date(b.dateCreated);
-          console.log(`Comparing dates: ${bDate} - ${aDate}`);
-          return bDate - aDate; // Newest date first
-        }
-        if (a.status === "Active" && b.status === "Active") {
-          const aDate = new Date(a.dateCreated);
-          const bDate = new Date(b.dateCreated);
-          console.log(`Comparing dates: ${bDate} - ${aDate}`);
-          return bDate - aDate; // Newest date first
-        }
-        if (a.status === "New" && b.status === "New") {
-          const aDate = new Date(a.dateCreated);
-          const bDate = new Date(b.dateCreated);
-          console.log(`Comparing dates: ${bDate} - ${aDate}`);
-          return bDate - aDate; // Newest date first
-        }
-
-        return 0;
-      });
-
-      return sortedClients;
+      // Sort clients by status and then by dateCreated (newest first)
+      return sortClientsByStatusAndDate(allClientsWithBills);
     } else {
-      return allClients.sort((a, b) => {
-        const statusOrder = { Inactive: 1, New: 2, Pending: 3, Active: 4 };
-
-        const aStatusPriority = statusOrder[a.status];
-        const bStatusPriority = statusOrder[b.status];
-
-        // Sort by status priority first
-        if (aStatusPriority !== bStatusPriority) {
-          return aStatusPriority - bStatusPriority;
-        }
-
-        // If both are active, sort by latest `dateCreated` (newest first)
-        if (a.status === "Active" && b.status === "Active") {
-          const aDate = new Date(a.dateCreated);
-          const bDate = new Date(b.dateCreated);
-          console.log(`Comparing dates: ${bDate} - ${aDate}`);
-          return bDate - aDate; // Newest date first
-        }
-        if (a.status === "New" && b.status === "New") {
-          const aDate = new Date(a.dateCreated);
-          const bDate = new Date(b.dateCreated);
-          console.log(`Comparing dates: ${bDate} - ${aDate}`);
-          return bDate - aDate; // Newest date first
-        }
-
-        return 0;
-      });
+      // If no bills exist, just sort all clients
+      return sortClientsByStatusAndDate(allClients);
     }
   } catch (error) {
     console.error("Error in ConsumersWithBill:", error);
     throw new Error("Internal Server Error");
   }
 };
+
+// Helper function to sort clients by status priority and date
+function sortClientsByStatusAndDate(clients) {
+  return clients.sort((a, b) => {
+    // Define status priorities (higher number = higher priority)
+    const statusOrder = {
+      Inactive: 1,
+      Pending: 2,
+      Active: 3,
+    };
+
+    const aStatusPriority = statusOrder[a.status] || 0;
+    const bStatusPriority = statusOrder[b.status] || 0;
+
+    // Sort by status priority first
+    if (aStatusPriority !== bStatusPriority) {
+      return aStatusPriority - bStatusPriority;
+    }
+
+    // If status is the same, sort by dateCreated (newest first)
+    // This applies to all statuses, not just Active or Pending
+    const aDate = new Date(a.dateCreated || 0);
+    const bDate = new Date(b.dateCreated || 0);
+
+    // Debug log if needed
+    // console.log(`Comparing dates for ${a.acc_num} and ${b.acc_num}: ${bDate} - ${aDate}`);
+
+    // Return newest first (descending order)
+    return bDate - aDate;
+  });
+}
 
 exports.GetTotalClients = async () => {
   try {
