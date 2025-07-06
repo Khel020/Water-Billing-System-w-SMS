@@ -63,11 +63,11 @@ cron.schedule("* * * * *", async () => {
   try {
     const today = new Date().toISOString().split("T")[0]; // Get today's date (YYYY-MM-DD)
 
-    // Find all unpaid bills that are due today or earlier, but not yet penalized
+    // Find all unpaid bills that are due today or earlier, and not yet penalized
     const overdueBills = await BILL.find({
-      due_date: { $lte: today }, // Due today or earlier
+      due_date: { $lte: today },
       payment_status: "Unpaid",
-      penaltyApplied: false, // Ensure penalty is applied only once
+      penaltyApplied: false,
     });
 
     console.log("Overdue Bills:", overdueBills.length);
@@ -80,7 +80,7 @@ cron.schedule("* * * * *", async () => {
       const newPenalty = bill.currentBill * PENALTY_RATE;
       console.log("NEW PENALTY:", newPenalty);
 
-      // Compute new TotalDue (TotalDue + newPenalty)
+      // Compute new TotalDue
       const updatedCurrentBill = bill.currentBill + newPenalty;
       console.log("Updated TotalDue:", updatedCurrentBill);
 
@@ -89,10 +89,10 @@ cron.schedule("* * * * *", async () => {
         { _id: bill._id },
         {
           $set: {
-            p_charge: bill.p_charge + newPenalty, // Update p_charge
-            currentBill: updatedCurrentBill, // Update TotalDue
+            p_charge: bill.p_charge + newPenalty,
+            currentBill: updatedCurrentBill,
             totalDue: updatedCurrentBill,
-            penaltyApplied: true, // Mark as penalty applied
+            penaltyApplied: true,
             payment_status: "Overdue",
           },
         }
@@ -101,14 +101,38 @@ cron.schedule("* * * * *", async () => {
       // Update the client's totalBalance
       await clientmodel.updateOne(
         { acc_num: bill.acc_num },
-        { $inc: { totalBalance: newPenalty } } // Add penalty to totalBalance
+        { $inc: { totalBalance: newPenalty } }
       );
+
+      // 👉 Check if the client now has 3 or more unpaid bills
+      const unpaidBillsCount = await BILL.countDocuments({
+        acc_num: bill.acc_num,
+        payment_status: { $in: ["Unpaid", "Overdue"] }, // Count both Unpaid and Overdue
+      });
+
+      console.log(
+        `Client ${bill.acc_num} has ${unpaidBillsCount} unpaid bills.`
+      );
+
+      if (unpaidBillsCount >= 3) {
+        // Update disconnection_status to "For Disconnection"
+        await clientmodel.updateOne(
+          { acc_num: bill.acc_num },
+          {
+            $set: {
+              disconnection_status: "For Disconnection",
+              status: "Inactive",
+            },
+          }
+        );
+        console.log(`Client ${bill.acc_num} marked for disconnection.`);
+      }
 
       updatedCount++;
     }
 
     console.log(
-      `✅ Applied penalty and updated TotalDue & totalBalance for ${updatedCount} overdue bills.`
+      `✅ Applied penalty, updated TotalDue, checked disconnection for ${updatedCount} overdue bills.`
     );
   } catch (error) {
     console.error("❌ Error updating overdue bills:", error);

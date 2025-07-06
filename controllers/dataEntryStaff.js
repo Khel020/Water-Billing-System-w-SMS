@@ -153,8 +153,10 @@ async function processSingleBill(billData) {
     const clientExists = await Client.findOne({ acc_num: billData.acc_num });
 
     if (clientExists) {
-      const newTotalBalance =
-        parseFloat(clientExists.totalBalance || 0) + billData.totalDue;
+      const oldBalance = parseFloat(clientExists.totalBalance) || 0;
+      const newBillAmount = parseFloat(billData.totalDue) || 0;
+
+      const newTotalBalance = (oldBalance + newBillAmount).toFixed(2); // Proper addition
 
       const updateFields = {
         totalBalance: newTotalBalance,
@@ -162,11 +164,6 @@ async function processSingleBill(billData) {
         last_billStatus: "Unpaid",
         latest_billDue: billData.due_date,
       };
-
-      // If client status is "New", update to "Active"
-      if (clientExists.status === "New") {
-        updateFields.status = "Active";
-      }
 
       await Client.findOneAndUpdate(
         { acc_num: billData.acc_num },
@@ -178,7 +175,7 @@ async function processSingleBill(billData) {
     // Check for 3 unpaid bills
     const unpaidBillsCount = await bills.countDocuments({
       acc_num: billData.acc_num,
-      payment_status: "Unpaid",
+      payment_status: "Overdue",
     });
 
     // If 3+ unpaid bills, update status to "Inactive"

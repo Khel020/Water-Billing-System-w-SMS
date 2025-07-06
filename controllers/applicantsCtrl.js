@@ -19,7 +19,7 @@ exports.createApplication = async (data) => {
       position,
       business_name,
       business_position,
-      client_type,
+      selectedClass,
       email,
     } = data;
 
@@ -29,7 +29,7 @@ exports.createApplication = async (data) => {
       !address ||
       !contact ||
       !date_of_birth ||
-      !client_type
+      !selectedClass
     ) {
       return {
         success: false,
@@ -51,7 +51,7 @@ exports.createApplication = async (data) => {
     }
 
     // **Government Client Type Check**
-    if (client_type === "Government") {
+    if (selectedClass === "Government") {
       const existingAgency = await Applicant.findOne({ officer_agency });
       if (existingAgency) {
         return {
@@ -62,7 +62,7 @@ exports.createApplication = async (data) => {
     }
 
     // **Commercial, Industrial, Bulk Client Type Check**
-    if (client_type === "Comm/Indu/Bulk") {
+    if (selectedClass === "Comm/Indu/Bulk") {
       const existingBusiness = await Applicant.findOne({ business_name });
       if (existingBusiness) {
         return {
@@ -84,7 +84,7 @@ exports.createApplication = async (data) => {
       position,
       business_name,
       business_position,
-      classification: client_type,
+      client_type: selectedClass,
       email,
     });
 

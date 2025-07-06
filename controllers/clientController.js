@@ -494,20 +494,16 @@ exports.GetConsumerForSMS = async () => {
   try {
     console.log("📡 Fetching Consumers for SMS...");
 
-    // 🗓️ Get the current date at midnight (00:00:00)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 🗓️ Get the end of today (23:59:59) to include the whole day
     const endOfToday = new Date(today);
     endOfToday.setHours(23, 59, 59, 999);
 
-    // 🗓️ Get the date 3 days from today at midnight
     const threeDaysDue = new Date(today);
     threeDaysDue.setDate(today.getDate() + 3);
     threeDaysDue.setHours(0, 0, 0, 0);
 
-    // 🗓️ Get the end of the near overdue day (23:59:59)
     const endOfThreeDaysDue = new Date(threeDaysDue);
     endOfThreeDaysDue.setHours(23, 59, 59, 999);
 
@@ -516,37 +512,59 @@ exports.GetConsumerForSMS = async () => {
     console.log("⏳ NEAR OVERDUE START:", threeDaysDue);
     console.log("⏳ NEAR OVERDUE END:", endOfThreeDaysDue);
 
-    // 🔍 Find new consumers using activation_date (only for today)
+    // 🔍 New Consumers (activated today)
     const newConsumers = await client.find({
       dateActivated: {
         $gte: today,
-        $lte: endOfToday, // Ensure it includes the whole day
+        $lte: endOfToday,
       },
     });
 
-    // 🔍 Find consumers for disconnection
+    // 🔍 Consumers marked for disconnection
     const forDisconnection = await client.find({
       disconnection_status: "For Disconnection",
     });
 
-    // 🔍 Find overdue bills (Unpaid and due today or earlier)
-    const overdueBills = await client.find({
+    // 🔍 Consumers with overdue bills
+    const overdueClients = await client.find({
       last_billStatus: "Unpaid",
-      latest_billDue: {
-        $lte: endOfToday, // Includes everything before or exactly today
-      },
+      latest_billDue: { $lte: endOfToday },
     });
+    console.log("LIst1", overdueClients);
+    const overdueBillsList = [];
 
-    // 🔍 Find near overdue (Unpaid and due exactly 3 days from now)
+    for (const consumer of overdueClients) {
+      const bills = await bill.find({
+        acc_num: consumer.acc_num,
+        payment_status: "Overdue",
+        due_date: { $lte: endOfToday },
+      });
+      console.log("LIst2", bills);
+      if (bills.length > 0) {
+        overdueBillsList.push({
+          type: "Overdue",
+          acc_num: consumer.acc_num,
+          acc_name: consumer.accountName,
+          address: consumer.c_address,
+          contact: consumer.contact,
+          date: bills[0]?.reading_date,
+          billsUnpaid: bills.length, // total number of unpaid/overdue bills
+          billAmount: bills[0]?.currentBill,
+          balance: consumer.totalBalance, // total balance from client record
+          latest_billDue: consumer.latest_billDue, // from client record
+        });
+      }
+    }
+    console.log("LIst", overdueBillsList);
+    // 🔍 Near Overdue (exactly 3 days from now)
     const nearOverdueBills = await client.find({
-      last_billStatus: "Unpaid",
+      last_billStatus: "Unpaid" ,
       latest_billDue: {
-        $gte: threeDaysDue, // Start of near-overdue day
-        $lte: endOfThreeDaysDue, // End of near-overdue day
+        $gte: threeDaysDue,
+        $lte: endOfThreeDaysDue,
       },
     });
 
-    // 📋 Format final list
     const consumersList = [
       ...newConsumers.map((consumer) => ({
         type: "New Consumer",
@@ -562,13 +580,7 @@ exports.GetConsumerForSMS = async () => {
         address: consumer.c_address,
         contact: consumer.contact,
       })),
-      ...overdueBills.map((consumer) => ({
-        type: "Overdue",
-        acc_num: consumer.acc_num,
-        acc_name: consumer.accountName,
-        address: consumer.c_address,
-        contact: consumer.contact,
-      })),
+      ...overdueBillsList,
       ...nearOverdueBills.map((consumer) => ({
         type: "Near Overdue",
         acc_num: consumer.acc_num,

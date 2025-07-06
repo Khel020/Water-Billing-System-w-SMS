@@ -549,9 +549,10 @@ exports.getConsumerCollectionSummary = async (req, res) => {
     const end = new Date(endDate);
 
     start.setUTCDate(1); // Set sa 1st day ng buwan
-    start.setUTCHours(0, 0, 0, 0); // Set sa simula ng araw
+    start.setUTCHours(0, 0, 0, 0); // Simula ng araw
 
-    end.setUTCHours(23, 59, 59, 999); // Set sa dulo ng araw
+    end.setUTCHours(23, 59, 59, 999); // Dulo ng araw
+
     console.log("Filtering bills from:", start, "to:", end);
 
     const collectionSummary = await payments.aggregate([
@@ -564,11 +565,15 @@ exports.getConsumerCollectionSummary = async (req, res) => {
         $group: {
           _id: {
             acc_num: "$acc_num",
+            app_num: "$app_num",
+            billNo: "$billNo",
             accountName: "$accountName",
+            OR_NUM: "$OR_NUM",
+            type: "$paymentType",
           },
           totalBilled: { $sum: "$amountDue" },
           totalCollected: { $sum: { $subtract: ["$tendered", "$change"] } },
-          totalPenalties: { $sum: "$p_charge" }, // Total penalty
+          totalPenalties: { $sum: "$p_charge" },
           outstanding: { $sum: "$balance" },
           lastPaymentDate: { $max: "$paymentDate" },
         },
@@ -576,25 +581,31 @@ exports.getConsumerCollectionSummary = async (req, res) => {
       {
         $project: {
           _id: 0,
+          OR_NUM: "$_id.OR_NUM",
           acc_num: "$_id.acc_num",
+          app_num: "$_id.app_num",
           accountName: "$_id.accountName",
+          paymentType: "$_id.type",
+          billNo: "$_id.billNo",
           totalBilled: 1,
           totalCollected: 1,
-          totalPenalties: 1, // Ipakita ang kabuuang penalty
+          totalPenalties: 1,
           outstanding: 1,
           lastPaymentDate: 1,
         },
       },
-      { $sort: { accountName: 1 } },
+      {
+        $sort: { accountName: 1 },
+      },
     ]);
 
-    return collectionSummary; // Ibalik ang summary bilang response
+    return collectionSummary;
   } catch (error) {
     console.error("Error fetching consumer collection summary:", error);
-    return res.status(500).json({
+    return {
       message: "Failed to fetch collection summary",
       error: error.message,
-    });
+    };
   }
 };
 

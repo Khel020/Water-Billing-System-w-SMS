@@ -47,9 +47,7 @@ exports.CreateUser = async (data) => {
       if (account.name === `${data.fname} ${data.lastname}`) {
         errors.name = "This name is already registered.";
       }
-      if (String(account.meter_num) === String(data.meter_num)) {
-        errors.meter_num = "Meter Number is already taken.";
-      }
+
       if (account.email === data.email) {
         errors.email = "Email is already taken.";
       }

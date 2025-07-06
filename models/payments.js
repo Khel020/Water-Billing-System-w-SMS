@@ -7,6 +7,9 @@ let PaymentsSchema = new mongoose.Schema({
     required: true,
   },
   billNo: [Number],
+  app_num: {
+    type: String,
+  },
   acc_num: {
     type: String,
   },

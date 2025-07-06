@@ -278,19 +278,23 @@ module.exports.GetBillsByBillNum = async (data) => {
 
 module.exports.findBillsPayment = async (account) => {
   try {
-    console.log("Search", account);
+    console.log("Search input:", account);
 
-    // Check if the search value is either account number or account name
+    // WALANG tanggal hyphen
     const client = await Client.findOne({
-      $or: [{ acc_num: account }, { accountName: account }],
+      $or: [
+        { acc_num: account.trim() }, // Direct match with hyphen
+        { accountName: account.trim() }, // or match by account name
+      ],
     }).exec();
+
+    console.log("SEARCH RESULT:", client);
 
     if (client) {
       const consumerBills = await bills
         .find({ acc_num: client.acc_num })
         .exec();
 
-      // If no bills exist, return the totalBalance from the client
       if (consumerBills.length === 0) {
         return {
           totalAmountDue: parseFloat(client.totalBalance).toFixed(2),
@@ -298,7 +302,7 @@ module.exports.findBillsPayment = async (account) => {
           consumerName: client.accountName,
           accountNum: client.acc_num,
           address: client.c_address,
-          amountPaid: 0, // Add amountPaid field even when no bills exist
+          amountPaid: 0,
         };
       }
 
@@ -307,18 +311,16 @@ module.exports.findBillsPayment = async (account) => {
         .sort({ reading_date: -1 })
         .exec();
 
-      console.log("latestBill", latestBill);
       const billNo = latestBill.billNumber;
       const status = latestBill.payment_status;
-      const billAmount = parseFloat(latestBill.currentBill).toFixed(2); // Ensure 2 decimal places
+      const billAmount = parseFloat(latestBill.currentBill).toFixed(2);
       const arrears = parseFloat(latestBill.arrears).toFixed(2);
       const totalAmountDue = parseFloat(client.totalBalance).toFixed(2);
-      const totalPenalty = parseFloat(latestBill.p_charge).toFixed(2); // Ensure penalty is a decimal
+      const totalPenalty = parseFloat(latestBill.p_charge).toFixed(2);
       const amountPaid = latestBill.amountPaid
         ? parseFloat(latestBill.amountPaid).toFixed(2)
-        : 0; // Check if amountPaid exists, otherwise set to 0
+        : 0;
 
-      // Return the response with bill details including amountPaid
       return {
         arrears,
         status,
@@ -329,10 +331,9 @@ module.exports.findBillsPayment = async (account) => {
         consumerName: client.accountName,
         address: client.c_address,
         billNo,
-        amountPaid, // Include the amount paid
+        amountPaid,
       };
     } else {
-      // Return 404 if the client is not found
       return {
         error: "Client not found",
         message: "Client not found",
@@ -344,9 +345,8 @@ module.exports.findBillsPayment = async (account) => {
       };
     }
   } catch (error) {
-    console.error("Error finding bills payment:", error);
+    console.error("❌ Error finding bills payment:", error);
 
-    // Handle server error
     return {
       message: "Server error",
       totalAmountDue: 0,
@@ -403,6 +403,7 @@ module.exports.calculateChange = async (data) => {
 module.exports.payFees = async (req, res) => {
   try {
     const {
+      app_no,
       acc_name,
       p_date,
       totalChange,
@@ -422,6 +423,7 @@ module.exports.payFees = async (req, res) => {
 
     // Create new payment record
     const paymentData = new Payment({
+      app_num: app_no,
       accountName: acc_name,
       paymentDate: p_date,
       change: totalChange,
@@ -500,6 +502,7 @@ module.exports.AddPayment = async (data) => {
         change: data.totalChange, // To be calculated
         balance: 0, // To be calculated
         processBy: account,
+        paymentType: "bill",
       });
 
       let totalDue = 0; // Total amount due for all bills paid
@@ -592,6 +595,7 @@ module.exports.AddPayment = async (data) => {
     } else {
       // If no bills exist, assume this is an installation fee payment
       const newPayment = new Payment({
+        app_num: data.application_num,
         acc_num: data.acc_num,
         accountName: data.acc_name, // Adjusted for consistency
         address: data.address,
@@ -601,6 +605,8 @@ module.exports.AddPayment = async (data) => {
         change: 0, // No change expected
         balance: 0.0, // No remaining balance
         billNo: [], // No bill numbers for installation fee
+        paymentType: "bill",
+        processBy: account,
       });
 
       const paymentResult = await newPayment.save();

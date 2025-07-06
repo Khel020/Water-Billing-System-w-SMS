@@ -98,7 +98,8 @@ module.exports.isDataUploader = (req, res) => {
 module.exports.AdminOrCS_Officer = (req, res, next) => {
   if (
     module.exports.isAdmin(req, res) ||
-    module.exports.isCS_Officer(req, res)
+    module.exports.isCS_Officer(req, res) ||
+    module.exports.isBiller(req, res)
   ) {
     console.log("TYPE KO", req.user.type);
     next();
@@ -126,7 +127,7 @@ module.exports.UserOnly = (req, res, next) => {
     res.send({ Message: "Forbiden Action" });
     return;
   }
-  next;
+  next();
 };
 module.exports.BillerOnly = (req, res, next) => {
   if (!module.exports.isBiller(req, res)) {

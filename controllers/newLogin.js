@@ -58,6 +58,7 @@ module.exports.login = async (req) => {
       });
       returnBody.expTKN = new Date(new Date().getTime() + 23 * 60 * 60 * 1000);
       returnBody.name = user.username;
+      returnBody.acc_name = user.name;
       returnBody.type = userType;
       return { success: true, returnBody: returnBody };
     } else {
@@ -183,7 +184,6 @@ module.exports.orgLogin = async (req) => {
     } else {
       return { success: false, message: "Invalid User Type" };
     }
-    const usernamepass = user;
   } catch (error) {
     console.error("Login Error:", error);
     throw new Error("Server error"); // Throw error to be caught in route

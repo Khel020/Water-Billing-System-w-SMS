@@ -120,6 +120,7 @@ route.post(
     const usertype = req.role;
     // Prepare the payment data, including the username
     const paymentData = {
+      app_no: req.body.application_num,
       acc_name: req.body.applicant,
       p_date: req.body.p_date,
       amountDue: req.body.amountDue,
